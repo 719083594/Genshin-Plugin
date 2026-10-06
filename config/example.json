@@ -1,8 +1,31 @@
 {
-  "enabled":true,"adapter":"none","prefix":"#原神","timeoutMs":12000,"cacheSeconds":300,"maxReplyChars":3500,
-  "region":"cn","credentialsKey":"","masters":[],"allowCookieInPrivate":true,
-  "notifications":{"enabled":false,"resinThreshold":180,"intervalMinutes":15},
-  "autoSign":{"enabled":false,"time":"08:10","timezone":"Asia/Shanghai"},
-  "providers":{"enka":true,"miao":false,"genshin":false,"xhh":false,"fanSky":false,"moan":false},
-  "moan":{"baseUrl":"","key":"","mode":"personal","allowCloudUpload":false}
+  "enabled": true,
+  "adapter": "none",
+  "prefix": "#原神",
+  "timeoutMs": 12000,
+  "cacheSeconds": 300,
+  "maxReplyChars": 3500,
+  "region": "cn",
+  "credentialsKey": "",
+  "masters": [],
+  "allowCookieInPrivate": true,
+  "notifications": {
+    "enabled": false,
+    "resinThreshold": 180,
+    "intervalMinutes": 15
+  },
+  "providers": {
+    "enka": true,
+    "miao": false,
+    "genshin": false,
+    "xhh": false,
+    "fanSky": false,
+    "moan": false
+  },
+  "moan": {
+    "baseUrl": "",
+    "key": "",
+    "mode": "personal",
+    "allowCloudUpload": false
+  }
 }

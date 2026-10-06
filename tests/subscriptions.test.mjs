@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import crypto from 'node:crypto';
 import { Subscriptions, SubscriptionError } from '../lib/subscriptions.mjs';
+import { encryptJson, decryptJson } from '../lib/encrypted-json.mjs';
 
 const OWNER = '12345678';
 const OTHER = '87654321';
@@ -22,8 +24,8 @@ function setup(t, overrides = {}) {
     assert.ok(target.startsWith(base + path.sep) && path.basename(target).startsWith('teyvat-subscriptions-test-'));
     fs.rmSync(target, { recursive: true, force: true });
   });
-  let now = Date.parse('2026-10-07T00:15:00Z'); // Shanghai 08:15
-  const config = { enabled: true, notifications: { enabled: true, intervalMinutes: 15, resinThreshold: 180 }, autoSign: { enabled: true, time: '08:10', retryMinutes: 60 } };
+  let now = Date.parse('2026-10-07T00:15:00Z');
+  const config = { enabled: true, notifications: { enabled: true, intervalMinutes: 15, resinThreshold: 180 } };
   const ownerAccounts = new Map([[OWNER, new Map([[UID, { uid: UID, region: 'cn', server: 'cn_gf01', hasCookie: true, cookie: COOKIE }]])], [OTHER, new Map([[SECOND_UID, { uid: SECOND_UID, region: 'cn', server: 'cn_gf01', hasCookie: true, cookie: COOKIE }]])]]);
   const selected = new Map([[OWNER, UID], [OTHER, SECOND_UID]]);
   const accounts = {
@@ -32,16 +34,13 @@ function setup(t, overrides = {}) {
   };
   const sent = [];
   const queries = [];
-  const signs = [];
   const versions = [];
   let note = healthy;
-  let signResult = { ok: true, status: 'signed', message: 'ignored' };
   let version = { current: '6.0.0', preDownload: '' };
   const options = {
     accounts,
     mys: {
-      async query(kind, account) { queries.push({ kind, uid: account.uid }); return { ok: true, data: structuredClone(note) }; },
-      async sign(account) { signs.push(account.uid); return signResult; }
+      async query(kind, account) { queries.push({ kind, uid: account.uid }); return { ok: true, data: structuredClone(note) }; }
     },
     publicData: { async version() { versions.push(now); return version; } },
     send: async (target, text) => { sent.push({ target, text }); return true; },
@@ -50,22 +49,20 @@ function setup(t, overrides = {}) {
     ...overrides
   };
   const subscriptions = new Subscriptions(root, options);
-  return { root, subscriptions, options, config, sent, queries, signs, versions, accounts, ownerAccounts, selected,
-    advance(ms) { now += ms; }, time(value) { now = Date.parse(value); }, note(value) { note = value; }, signResult(value) { signResult = value; }, version(value) { version = value; } };
+  return { root, subscriptions, options, config, sent, queries, versions, accounts, ownerAccounts, selected,
+    advance(ms) { now += ms; }, time(value) { now = Date.parse(value); }, note(value) { note = value; }, version(value) { version = value; } };
 }
 
 test('no subscription or disabled global switches means no requests or messages', async t => {
   const env = setup(t);
   assert.equal((await env.subscriptions.tick()).calls, 0);
   env.subscriptions.set(OWNER, { kind: 'resin', enabled: true });
-  env.subscriptions.set(OWNER, { kind: 'sign', enabled: true });
   env.subscriptions.set(OWNER, { kind: 'version', enabled: true });
   env.config.notifications.enabled = false;
-  env.config.autoSign.enabled = false;
   assert.equal((await env.subscriptions.tick()).calls, 0);
-  assert.equal(env.queries.length + env.signs.length + env.versions.length + env.sent.length, 0);
+  assert.equal(env.queries.length + env.versions.length + env.sent.length, 0);
   env.config.enabled = false;
-  env.config.notifications.enabled = env.config.autoSign.enabled = true;
+  env.config.notifications.enabled = true;
   assert.equal((await env.subscriptions.tick()).calls, 0);
 });
 
@@ -76,12 +73,12 @@ test('subscriptions capture only an owned authorized UID and list is owner-isola
   assert.equal(row.uid, UID);
   assert.deepEqual(env.subscriptions.list(OTHER), []);
   env.ownerAccounts.get(OWNER).get(UID).hasCookie = false;
-  assert.throws(() => env.subscriptions.set(OWNER, { kind: 'sign', enabled: true }), { code: 'not_authorized' });
+  assert.throws(() => env.subscriptions.set(OWNER, { kind: 'resin', enabled: true }), { code: 'not_authorized' });
 });
 
 test('subscription input rejects credentials, bad thresholds, types and routing IDs', t => {
   const env = setup(t);
-  for (const input of [{ kind: 'resin', enabled: true, cookie: COOKIE }, { kind: 'resin', enabled: true, threshold: 0 }, { kind: 'resin', enabled: true, threshold: '180' }, { kind: 'resin', enabled: true, botId: '../escape' }, { kind: 'unknown', enabled: true }, { kind: 'sign', enabled: true, report: 'group' }]) {
+  for (const input of [{ kind: 'resin', enabled: true, cookie: COOKIE }, { kind: 'resin', enabled: true, threshold: 0 }, { kind: 'resin', enabled: true, threshold: '180' }, { kind: 'resin', enabled: true, botId: '../escape' }, { kind: 'unknown', enabled: true }, { kind: 'resin', enabled: true, report: 'group' }]) {
     assert.throws(() => env.subscriptions.set(OWNER, input), SubscriptionError);
   }
 });
@@ -159,85 +156,11 @@ test('upstream failures and incomplete notes never send false reminders or reset
 test('unbound or revoked accounts stop queries even if an old subscription remains enabled', async t => {
   const env = setup(t);
   env.subscriptions.set(OWNER, { kind: 'resin', enabled: true });
-  env.subscriptions.set(OWNER, { kind: 'sign', enabled: true });
   env.ownerAccounts.get(OWNER).delete(UID);
   assert.equal((await env.subscriptions.tick()).calls, 0);
   assert.equal(env.sent.length, 0);
   assert.equal(env.subscriptions.set(OWNER, { kind: 'resin', enabled: false }).count, 1);
   assert.equal(env.subscriptions.list(OWNER)[0].enabled, false);
-});
-
-test('auto-sign uses Shanghai time, once per owned account/day, and always sends private summaries', async t => {
-  const env = setup(t);
-  env.time('2026-10-06T23:59:00Z'); // Shanghai 07:59, previous UTC date
-  env.subscriptions.set(OWNER, { kind: 'sign', enabled: true, groupId: GROUP, botId: BOT });
-  assert.equal((await env.subscriptions.tick()).calls, 0);
-  env.time('2026-10-07T00:15:00Z');
-  assert.equal((await env.subscriptions.tick()).calls, 2);
-  assert.equal(env.sent[0].target.groupId, null);
-  assert.match(env.sent[0].text, /2026-10-07/);
-  assert.match(env.sent[0].text, /签到成功/);
-  assert.equal((await env.subscriptions.tick()).calls, 0);
-  const restored = new Subscriptions(env.root, env.options);
-  assert.equal((await restored.tick()).calls, 0);
-  assert.equal(env.sent.length, 1);
-  env.time('2026-10-08T00:15:00Z');
-  assert.equal((await restored.tick()).calls, 2);
-  assert.equal(env.signs.length, 2);
-});
-
-test('multiple explicit account opt-ins produce one private sign summary for their owner', async t => {
-  const env = setup(t);
-  env.ownerAccounts.get(OWNER).set(SECOND_UID, { uid: SECOND_UID, hasCookie: true, cookie: COOKIE });
-  env.subscriptions.set(OWNER, { kind: 'sign', enabled: true, botId: BOT });
-  env.selected.set(OWNER, SECOND_UID);
-  env.subscriptions.set(OWNER, { kind: 'sign', enabled: true, botId: BOT });
-  const result = await env.subscriptions.tick();
-  assert.equal(result.calls, 4);
-  assert.deepEqual(env.signs.sort(), [UID, SECOND_UID]);
-  assert.equal(env.sent.length, 1);
-  assert.match(env.sent[0].text, /100000001/);
-  assert.match(env.sent[0].text, /100000002/);
-  assert.equal(env.subscriptions.list(OTHER).length, 0);
-});
-
-test('failed sign is never called success, is retried at most three times/day and repeated failure reports are deduplicated', async t => {
-  const env = setup(t);
-  env.signResult({ ok: false, code: 'verification_required', message: COOKIE });
-  env.subscriptions.set(OWNER, { kind: 'sign', enabled: true });
-  assert.equal((await env.subscriptions.tick()).failed, 1);
-  assert.match(env.sent[0].text, /未完成/);
-  assert.ok(!env.sent[0].text.includes('签到成功') && !env.sent[0].text.includes('synthetic'));
-  env.advance(15 * 60000);
-  assert.equal((await env.subscriptions.tick()).calls, 0);
-  env.advance(45 * 60000);
-  assert.equal((await env.subscriptions.tick()).calls, 2);
-  assert.equal(env.sent.length, 1);
-  env.advance(60 * 60000); await env.subscriptions.tick();
-  env.advance(60 * 60000);
-  assert.equal((await env.subscriptions.tick()).calls, 0);
-  assert.equal(env.signs.length, 3);
-});
-
-test('successful sign with a failed send is re-reported after restart without re-signing', async t => {
-  const env = setup(t);
-  env.options.send = async () => false;
-  const scheduler = new Subscriptions(env.root, env.options);
-  scheduler.set(OWNER, { kind: 'sign', enabled: true });
-  assert.equal((await scheduler.tick()).sent, 0);
-  env.options.send = async (target, text) => { env.sent.push({ target, text }); };
-  const restored = new Subscriptions(env.root, env.options);
-  assert.equal((await restored.tick()).calls, 0);
-  assert.equal(env.signs.length, 1);
-  assert.equal(env.sent.length, 1);
-});
-
-test('silent auto-sign reports nothing but persists its successful daily dedup', async t => {
-  const env = setup(t);
-  env.subscriptions.set(OWNER, { kind: 'sign', enabled: true, report: 'none' });
-  assert.equal((await env.subscriptions.tick()).calls, 2);
-  assert.equal(env.sent.length, 0);
-  assert.equal((await env.subscriptions.tick()).calls, 0);
 });
 
 test('versions establish a silent baseline and broadcast changes with one shared request', async t => {
@@ -316,17 +239,15 @@ test('50-request budget rotates to accounts deferred by the first tick', async t
   assert.equal(new Set(env.queries.map(query => query.uid)).size, 55);
 });
 
-test('sign reserves two HTTP requests per account and stops at the 50-request budget', async t => {
+test('retired sign subscriptions are rejected even when legacy autoSign is enabled', async t => {
   const env = setup(t);
-  for (let index = 0; index < 30; index++) {
-    const uid = String(100000001 + index);
-    env.ownerAccounts.get(OWNER).set(uid, { uid, hasCookie: true, cookie: COOKIE });
-    env.subscriptions.set(OWNER, { kind: 'sign', enabled: true, uid });
-  }
-  assert.equal((await env.subscriptions.tick()).calls, 50);
-  assert.equal(env.signs.length, 25);
-  assert.equal((await env.subscriptions.tick()).calls, 10);
-  assert.equal(new Set(env.signs).size, 30);
+  env.config.autoSign = { enabled: true, time: '00:00', retryMinutes: 1 };
+  let mutations = 0;
+  env.options.mys.sign = async () => { mutations++; throw new Error('retired operation'); };
+  for (const enabled of [true, false]) assert.throws(() => env.subscriptions.set(OWNER, { kind: 'sign', enabled }), { code: 'invalid_parameters' });
+  assert.equal((await env.subscriptions.tick()).calls, 0);
+  assert.equal(mutations, 0);
+  assert.equal(env.sent.length, 0);
 });
 
 test('start and stop use an injected clock, default to 15 minutes and avoid duplicate timers', t => {
@@ -368,3 +289,60 @@ test('locks from a confirmed exited process are recovered, while live or unknown
 });
 
 test('inactive legacy subscriptions are encrypted at startup even with global switches disabled',t=>{const x=setup(t);const file=path.join(x.root,'data/subscriptions.json');fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,JSON.stringify({version:1,subscriptions:{},cursor:0,versionSnapshot:null,versionNextAt:0}));new Subscriptions(x.root,{config:{enabled:false}});assert.equal(JSON.parse(fs.readFileSync(file,'utf8')).algorithm,'aes-256-gcm');});
+
+test('startup removes retired jobs and execution metadata from encrypted and plaintext legacy states', async t => {
+  for (const encrypted of [false, true]) await t.test(encrypted ? 'AES source' : 'legacy plaintext source', async t => {
+    const env = setup(t);
+    env.subscriptions.set(OWNER, { kind: 'resin', enabled: true });
+    env.subscriptions.set(OTHER, { kind: 'version', enabled: true });
+    const options = { key: env.subscriptions.storageKey, aad: 'Teyvat-Plugin/subscriptions/v1' };
+    const old = decryptJson(JSON.parse(fs.readFileSync(env.subscriptions.file, 'utf8')), options);
+    const signId = crypto.createHash('sha256').update(`${OWNER}:sign:${UID}`).digest('hex');
+    const resin = Object.values(old.subscriptions).find(row => row.kind === 'resin');
+    resin.report = 'private';
+    resin.state = { ...resin.state, lastSignDay: '2026-10-06', lastSignStatus: 'signed', attempts: 2, attemptDay: '2026-10-07', lastReportKey: 'a'.repeat(64) };
+    old.subscriptions[signId] = { owner: OWNER, uid: UID, kind: 'sign', enabled: true, botId: BOT,
+      groupId: null, threshold: 180, report: 'private', revision: 1, state: { lastSignStatus: 'signed' } };
+    fs.writeFileSync(env.subscriptions.file, JSON.stringify(encrypted ? encryptJson(old, options) : old));
+    env.config.enabled = false;
+    env.config.autoSign = { enabled: true, time: '00:00' };
+    let mutations = 0;
+    env.options.mys.sign = async () => { mutations++; throw new Error('retired operation'); };
+    const restored = new Subscriptions(env.root, env.options);
+    assert.equal((await restored.tick()).calls, 0);
+    assert.equal(mutations, 0);
+    const envelope = JSON.parse(fs.readFileSync(env.subscriptions.file, 'utf8'));
+    assert.equal(envelope.algorithm, 'aes-256-gcm');
+    const saved = decryptJson(envelope, options);
+    assert.equal(saved.subscriptions[signId], undefined);
+    assert.equal(Object.keys(saved.subscriptions).length, 2);
+    assert.deepEqual(restored.list(OWNER).map(row => row.kind), ['resin']);
+    assert.deepEqual(restored.list(OTHER).map(row => row.kind), ['version']);
+    assert.doesNotMatch(JSON.stringify(saved), /lastSign|attemptDay|attempts|lastReportKey|"report"|"sign"/);
+    assert.deepEqual(Object.keys(Object.values(saved.subscriptions)[0].state).sort(), ['flags', 'noteNextAt', 'versionKey']);
+    env.config.enabled = true;
+    const result = await restored.tick();
+    assert.equal(result.calls, 2); // one daily-note read and one version read
+    assert.equal(mutations, 0);
+    assert.equal(env.queries.length, 1);
+    assert.equal(env.versions.length, 1);
+  });
+});
+
+test('cleanup preserves malformed retired rows and refuses a wrong encryption key', async t => {
+  for (const mode of ['malformed retired row', 'wrong key']) await t.test(mode, t => {
+    const env = setup(t);
+    env.subscriptions.set(OWNER, { kind: 'resin', enabled: true });
+    const options = { key: env.subscriptions.storageKey, aad: 'Teyvat-Plugin/subscriptions/v1' };
+    const old = decryptJson(JSON.parse(fs.readFileSync(env.subscriptions.file, 'utf8')), options);
+    if (mode === 'malformed retired row') {
+      old.subscriptions['incorrect-id'] = { owner: OWNER, uid: UID, kind: 'sign', enabled: true };
+      fs.writeFileSync(env.subscriptions.file, JSON.stringify(encryptJson(old, options)));
+    }
+    const source = fs.readFileSync(env.subscriptions.file, 'utf8');
+    const config = mode === 'wrong key' ? { ...env.config, credentialsKey: 'f'.repeat(64) } : env.config;
+    assert.throws(() => new Subscriptions(env.root, { ...env.options, config }), { code: 'invalid_storage' });
+    assert.equal(fs.readFileSync(env.subscriptions.file, 'utf8'), source);
+    assert.equal(env.queries.length + env.versions.length + env.sent.length, 0);
+  });
+});

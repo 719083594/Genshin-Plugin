@@ -1,0 +1,613 @@
+{
+  "schema": 1,
+  "source": "https://cnb.cool/rainbowwarmth/resources/-/git/raw/main/GamePush-Plugin/GamePush-Plugin.db",
+  "sourceSha256": "6ff7d6a08e762a9d550168f1db4ef55985204a13c1d00be9cdfb3bb92dc2e103",
+  "observedAt": "2026-10-06T21:49:30.851Z",
+  "main": [
+    {
+      "version": "1.0.0",
+      "size": "11.97 GB",
+      "time": null
+    },
+    {
+      "version": "1.0.1",
+      "size": "11.97 GB",
+      "time": null
+    },
+    {
+      "version": "1.1.0",
+      "size": "14.82 GB",
+      "time": null
+    },
+    {
+      "version": "1.2.0",
+      "size": "16.57 GB",
+      "time": null
+    },
+    {
+      "version": "1.3.0",
+      "size": "18.12 GB",
+      "time": null
+    },
+    {
+      "version": "1.3.2",
+      "size": "18.12 GB",
+      "time": null
+    },
+    {
+      "version": "1.4.0",
+      "size": "20.68 GB",
+      "time": null
+    },
+    {
+      "version": "1.5.0",
+      "size": "14.62 GB",
+      "time": null
+    },
+    {
+      "version": "1.5.1",
+      "size": "14.62 GB",
+      "time": null
+    },
+    {
+      "version": "1.6.0",
+      "size": "17.16 GB",
+      "time": null
+    },
+    {
+      "version": "2.0.0",
+      "size": "21.15 GB",
+      "time": null
+    },
+    {
+      "version": "2.1.0",
+      "size": "24.44 GB",
+      "time": null
+    },
+    {
+      "version": "2.2.0",
+      "size": "26.24 GB",
+      "time": null
+    },
+    {
+      "version": "2.3.0",
+      "size": "27.99 GB",
+      "time": null
+    },
+    {
+      "version": "2.4.0",
+      "size": "31.14 GB",
+      "time": null
+    },
+    {
+      "version": "2.5.0",
+      "size": "30.20 GB",
+      "time": null
+    },
+    {
+      "version": "2.6.0",
+      "size": "32.86 GB",
+      "time": null
+    },
+    {
+      "version": "2.7.0",
+      "size": "34.76 GB",
+      "time": null
+    },
+    {
+      "version": "2.8.0",
+      "size": "36.54 GB",
+      "time": null
+    },
+    {
+      "version": "3.0.0",
+      "size": "42.01 GB",
+      "time": null
+    },
+    {
+      "version": "3.1.0",
+      "size": "46.08 GB",
+      "time": null
+    },
+    {
+      "version": "3.2.0",
+      "size": "47.54 GB",
+      "time": null
+    },
+    {
+      "version": "3.3.0",
+      "size": "49.99 GB",
+      "time": null
+    },
+    {
+      "version": "3.4.0",
+      "size": "52.52 GB",
+      "time": null
+    },
+    {
+      "version": "3.5.0",
+      "size": "53.10 GB",
+      "time": null
+    },
+    {
+      "version": "3.6.0",
+      "size": "56.59 GB",
+      "time": null
+    },
+    {
+      "version": "3.7.0",
+      "size": "57.98 GB",
+      "time": null
+    },
+    {
+      "version": "3.8.0",
+      "size": "59.08 GB",
+      "time": null
+    },
+    {
+      "version": "4.0.0",
+      "size": "66.61 GB",
+      "time": null
+    },
+    {
+      "version": "4.0.1",
+      "size": "66.61 GB",
+      "time": null
+    },
+    {
+      "version": "4.1.0",
+      "size": "71.97 GB",
+      "time": null
+    },
+    {
+      "version": "4.2.0",
+      "size": "76.54 GB",
+      "time": null
+    },
+    {
+      "version": "4.3.0",
+      "size": "78.06 GB",
+      "time": null
+    },
+    {
+      "version": "4.4.0",
+      "size": "82.16 GB",
+      "time": null
+    },
+    {
+      "version": "4.5.0",
+      "size": "82.90 GB",
+      "time": null
+    },
+    {
+      "version": "4.6.0",
+      "size": "68.36 GB",
+      "time": null
+    },
+    {
+      "version": "4.7.0",
+      "size": "70.31 GB",
+      "time": null
+    },
+    {
+      "version": "4.8.0",
+      "size": "72.61 GB",
+      "time": null
+    },
+    {
+      "version": "5.0.0",
+      "size": "78.56 GB",
+      "time": null
+    },
+    {
+      "version": "5.1.0",
+      "size": "79.03 GB",
+      "time": null
+    },
+    {
+      "version": "5.2.0",
+      "size": "80.66 GB",
+      "time": null
+    },
+    {
+      "version": "5.3.0",
+      "size": "85.15 GB",
+      "time": null
+    },
+    {
+      "version": "5.4.0",
+      "size": "86.40 GB",
+      "time": null
+    },
+    {
+      "version": "5.5.0",
+      "size": "89.64 GB",
+      "time": null
+    },
+    {
+      "version": "5.6.0",
+      "size": "91.81 GB",
+      "time": null
+    },
+    {
+      "version": "5.7.0",
+      "size": "93.29 GB",
+      "time": null
+    },
+    {
+      "version": "5.8.0",
+      "size": "96.20 GB",
+      "time": null
+    },
+    {
+      "version": "6.0.0",
+      "size": "102.48 GB",
+      "time": null
+    },
+    {
+      "version": "6.1.0",
+      "size": "111.14 GB",
+      "time": null
+    },
+    {
+      "version": "6.2.0",
+      "size": "106.43 GB",
+      "time": null
+    },
+    {
+      "version": "6.3.0",
+      "size": "111.34 GB",
+      "time": null
+    },
+    {
+      "version": "6.4.0",
+      "size": "113.57 GB",
+      "time": null
+    },
+    {
+      "version": "6.5.0",
+      "size": "116.54 GB",
+      "time": null
+    },
+    {
+      "version": "6.6.0",
+      "size": "119.31 GB",
+      "time": "2026/05/20 06:10:00"
+    },
+    {
+      "version": "6.7.0",
+      "size": "123.32 GB",
+      "time": "2026/07/01 06:10:00"
+    },
+    {
+      "version": "7.0.0",
+      "size": "128.74 GB",
+      "time": "2026/08/12 06:10:00"
+    },
+    {
+      "version": "7.1.0",
+      "size": "135.85 GB",
+      "time": "2026/09/23 06:10:00"
+    }
+  ],
+  "pre": [
+    {
+      "version": "1.2.0",
+      "oldVersion": "1.1.0",
+      "size": "3.28 GB",
+      "time": null
+    },
+    {
+      "version": "1.3.2",
+      "oldVersion": "1.3.0",
+      "size": "0.16 GB",
+      "time": null
+    },
+    {
+      "version": "1.4.0",
+      "oldVersion": "1.3.2",
+      "size": "4.30 GB",
+      "time": null
+    },
+    {
+      "version": "1.5.0",
+      "oldVersion": "1.4.0",
+      "size": "5.42 GB",
+      "time": null
+    },
+    {
+      "version": "1.5.1",
+      "oldVersion": "1.5.0",
+      "size": "0.17 GB",
+      "time": null
+    },
+    {
+      "version": "1.6.0",
+      "oldVersion": "1.5.1",
+      "size": "3.58 GB",
+      "time": null
+    },
+    {
+      "version": "2.0.0",
+      "oldVersion": "1.6.0",
+      "size": "6.41 GB",
+      "time": null
+    },
+    {
+      "version": "2.1.0",
+      "oldVersion": "2.0.0",
+      "size": "7.15 GB",
+      "time": null
+    },
+    {
+      "version": "2.2.0",
+      "oldVersion": "2.1.0",
+      "size": "5.41 GB",
+      "time": null
+    },
+    {
+      "version": "2.3.0",
+      "oldVersion": "2.2.0",
+      "size": "4.87 GB",
+      "time": null
+    },
+    {
+      "version": "2.4.0",
+      "oldVersion": "2.3.0",
+      "size": "6.53 GB",
+      "time": null
+    },
+    {
+      "version": "2.5.0",
+      "oldVersion": "2.4.0",
+      "size": "7.15 GB",
+      "time": null
+    },
+    {
+      "version": "2.6.0",
+      "oldVersion": "2.5.0",
+      "size": "4.89 GB",
+      "time": null
+    },
+    {
+      "version": "2.7.0",
+      "oldVersion": "2.6.0",
+      "size": "9.69 GB",
+      "time": null
+    },
+    {
+      "version": "2.8.0",
+      "oldVersion": "2.7.0",
+      "size": "5.06 GB",
+      "time": null
+    },
+    {
+      "version": "3.0.0",
+      "oldVersion": "2.8.0",
+      "size": "8.84 GB",
+      "time": null
+    },
+    {
+      "version": "3.1.0",
+      "oldVersion": "3.0.0",
+      "size": "7.06 GB",
+      "time": null
+    },
+    {
+      "version": "3.2.0",
+      "oldVersion": "3.1.0",
+      "size": "0.52 GB",
+      "time": null
+    },
+    {
+      "version": "3.3.0",
+      "oldVersion": "3.2.0",
+      "size": "6.24 GB",
+      "time": null
+    },
+    {
+      "version": "3.4.0",
+      "oldVersion": "3.3.0",
+      "size": "0.37 GB",
+      "time": null
+    },
+    {
+      "version": "3.5.0",
+      "oldVersion": "3.4.0",
+      "size": "6.39 GB",
+      "time": null
+    },
+    {
+      "version": "3.6.0",
+      "oldVersion": "3.5.0",
+      "size": "10.26 GB",
+      "time": null
+    },
+    {
+      "version": "3.7.0",
+      "oldVersion": "3.6.0",
+      "size": "8.64 GB",
+      "time": null
+    },
+    {
+      "version": "3.8.0",
+      "oldVersion": "3.7.0",
+      "size": "10.49 GB",
+      "time": null
+    },
+    {
+      "version": "4.0.0",
+      "oldVersion": "3.8.0",
+      "size": "32.00 GB",
+      "time": null
+    },
+    {
+      "version": "4.0.1",
+      "oldVersion": "4.0.0",
+      "size": "0.31 GB",
+      "time": null
+    },
+    {
+      "version": "4.1.0",
+      "oldVersion": "4.0.1",
+      "size": "14.02 GB",
+      "time": null
+    },
+    {
+      "version": "4.2.0",
+      "oldVersion": "4.1.0",
+      "size": "13.55 GB",
+      "time": null
+    },
+    {
+      "version": "4.3.0",
+      "oldVersion": "4.2.0",
+      "size": "11.44 GB",
+      "time": null
+    },
+    {
+      "version": "4.4.0",
+      "oldVersion": "4.3.0",
+      "size": "7.97 GB",
+      "time": null
+    },
+    {
+      "version": "4.5.0",
+      "oldVersion": "4.4.0",
+      "size": "5.13 GB",
+      "time": null
+    },
+    {
+      "version": "4.6.0",
+      "oldVersion": "4.5.0",
+      "size": "28.72 GB",
+      "time": null
+    },
+    {
+      "version": "4.7.0",
+      "oldVersion": "4.6.0",
+      "size": "24.86 GB",
+      "time": null
+    },
+    {
+      "version": "4.8.0",
+      "oldVersion": "4.7.0",
+      "size": "14.19 GB",
+      "time": null
+    },
+    {
+      "version": "5.0.0",
+      "oldVersion": "4.8.0",
+      "size": "20.15 GB",
+      "time": null
+    },
+    {
+      "version": "5.1.0",
+      "oldVersion": "5.0.0",
+      "size": "18.54 GB",
+      "time": null
+    },
+    {
+      "version": "5.2.0",
+      "oldVersion": "5.1.0",
+      "size": "16.50 GB",
+      "time": null
+    },
+    {
+      "version": "5.3.0",
+      "oldVersion": "5.2.0",
+      "size": "17.81 GB",
+      "time": null
+    },
+    {
+      "version": "5.4.0",
+      "oldVersion": "5.3.0",
+      "size": "17.17 GB",
+      "time": null
+    },
+    {
+      "version": "5.5.0",
+      "oldVersion": "5.4.0",
+      "size": "15.48 GB",
+      "time": null
+    },
+    {
+      "version": "5.6.0",
+      "oldVersion": "5.5.0",
+      "size": "5.25 GB",
+      "time": null
+    },
+    {
+      "version": "5.7.0",
+      "oldVersion": "5.6.0",
+      "size": "4.24 GB",
+      "time": null
+    },
+    {
+      "version": "5.8.0",
+      "oldVersion": "5.7.0",
+      "size": "4.60 GB",
+      "time": null
+    },
+    {
+      "version": "6.0.0",
+      "oldVersion": "5.8.0",
+      "size": "8.09 GB",
+      "time": null
+    },
+    {
+      "version": "6.1.0",
+      "oldVersion": "6.0.0",
+      "size": "11.41 GB",
+      "time": null
+    },
+    {
+      "version": "6.2.0",
+      "oldVersion": "6.1.0",
+      "size": "15.07 GB",
+      "time": null
+    },
+    {
+      "version": "6.3.0",
+      "oldVersion": "6.2.0",
+      "size": "8.26 GB",
+      "time": null
+    },
+    {
+      "version": "6.4.0",
+      "oldVersion": "6.3.0",
+      "size": "6.39 GB",
+      "time": null
+    },
+    {
+      "version": "6.5.0",
+      "oldVersion": "6.4.0",
+      "size": "8.47 GB",
+      "time": null
+    },
+    {
+      "version": "6.6.0",
+      "oldVersion": "6.5.0",
+      "size": "5.67 GB",
+      "time": "2026/05/18 11:05:00"
+    },
+    {
+      "version": "6.7.0",
+      "oldVersion": "6.6.0",
+      "size": "6.51 GB",
+      "time": "2026/06/29 11:03:58"
+    },
+    {
+      "version": "7.0.0",
+      "oldVersion": "6.7.0",
+      "size": "7.71 GB",
+      "time": "2026/08/10 11:05:00"
+    },
+    {
+      "version": "7.1.0",
+      "oldVersion": "7.0.0",
+      "size": "9.79 GB",
+      "time": "2026/09/21 11:17:46"
+    }
+  ]
+}

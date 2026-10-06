@@ -45,7 +45,7 @@ export function planProviderSettings(botRoot,{yaml}={}) {
     };
     add('plugins/xhh-TL/config/config.yaml',YAML.stringify(settings));
     // No pre-created subscriptions: only users who explicitly enable them
-    // will receive reminder/sign-in/community-task messages.
+    // will receive reminder messages. Sign-in/community task classes stay excluded.
   }
   if(fs.existsSync(path.join(botRoot,'plugins/genshin'))) {
     const defaults=readYaml(path.join(botRoot,'plugins/genshin/defSet/mys/set.yaml'));

@@ -7,6 +7,7 @@ import {installNativeStorage} from './lib/native-storage.mjs';
 import {installNativeFileCache} from './lib/native-file-cache.mjs';
 import {installNativeRedis} from './lib/native-redis.mjs';
 import {installNativeXhhGuard} from './lib/native-xhh.mjs';
+import {installNativeGacha,configureNativeGacha,createNativeGachaRenderer,createMiaoGachaMetadata} from './lib/native-gacha.mjs';
 const root=fileURLToPath(new URL('.',import.meta.url));let apps={};export let nativeStatus={};
 let enabled=false;try{enabled=JSON.parse(fs.readFileSync(path.join(root,'config/local.json'),'utf8')).adapter==='yunzai'}catch{}
 if(enabled){
@@ -20,8 +21,13 @@ if(enabled){
   installNativeFileCache(storageOptions);
   installNativeRedis({redis:globalThis.redis,...storageOptions});
   const {Data}=await import('../miao-plugin/components/index.js');installNativeStorage({Data,...storageOptions});
+  const {Character,Weapon}=await import('../miao-plugin/models/index.js');
+  const GachaData=(await import('../miao-plugin/apps/gacha/GachaData.js')).default;
+  installNativeGacha({Data,...createMiaoGachaMetadata({Character,Weapon,GachaData})});
+  const hostRenderer=(await import('../../lib/puppeteer/puppeteer.js')).default;
+  configureNativeGacha({renderPrivate:createNativeGachaRenderer({botRoot:storageOptions.botRoot,getBrowser:()=>hostRenderer.browser}),image:buffer=>globalThis.segment.image(buffer)});
   const LiteMysApi=(await import('../xhh-TL/utils/mysClient.js')).default;installNativeXhhGuard({LiteMysApi});
-  configureNativeAccounts({accounts:engine.accounts,query:(api,account,params)=>engine.mys.query(api,account,params),allowGroupCookie:false});
+  configureNativeAccounts({accounts:engine.accounts,gacha:engine.gacha,query:(api,account,params)=>engine.mys.query(api,account,params),allowGroupCookie:false});
   const Runtime=(await import('../../lib/plugins/runtime.js')).default;
   const MysApi=(await import('../genshin/model/mys/mysApi.js')).default;
   installNativeAccountGuard({NoteUser:Runtime.prototype.NoteUser,MysInfo:Runtime.prototype.MysInfo,MysUser:Runtime.prototype.MysUser,MysApi});

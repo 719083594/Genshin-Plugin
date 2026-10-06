@@ -145,8 +145,6 @@ test('DS fixed vectors distinguish CN full request signing and OS simple signing
   assert.equal(cn, '1700000000,123456,' + digest('salt=xV8v4Qu54lUKrEYFZkJhB8cuOh9Asafs&t=1700000000&r=123456&b=&q=role_id=100000001&server=cn_gf01'));
   const os = dynamicSecret({ region: 'os', time: 1700000000, random: 'AbcDef', query: 'ignored=yes', body: 'ignored' });
   assert.equal(os, '1700000000,AbcDef,' + digest('salt=6s25p5ox5y14umn1p61aqyyvbvvl3lrt&t=1700000000&r=AbcDef'));
-  const signin = dynamicSecret({ region: 'cn', sign: true, time: 1700000000, random: 'AbcDef' });
-  assert.equal(signin, '1700000000,AbcDef,' + digest('salt=LyD1rXqMv2GJhnwdvCBjFOKGiKuLY3aO&t=1700000000&r=AbcDef'));
 });
 
 test('record queries use the verified CN and OS domains and never follow redirects', async () => {
@@ -351,24 +349,14 @@ test('new personal APIs preserve independent account payloads and scrub all upst
   for (const result of [expired, privateDeck, blueprint]) assert.ok(!JSON.stringify(result).includes('synthetic'));
 });
 
-test('sign queries status first and avoids mutations on already-signed or first-bind accounts', async () => {
-  const { client, requests } = mockClient([{ retcode: 0, data: { is_sign: true, total_sign_day: 3 } }, { retcode: 0, data: { first_bind: true } }]);
-  assert.equal((await client.sign(CN)).status, 'already');
-  assert.equal((await client.sign(OS)).code, 'first_bind');
-  assert.ok(requests.every(request => request.init.method === 'GET'));
-});
-
-test('CN and OS sign use distinct activity IDs and payloads with no cross-region UID', async () => {
-  const { client, requests } = mockClient([{ retcode: 0, data: { is_sign: false } }, { retcode: 0, data: {} }, { retcode: 0, data: { is_sign: false } }, { retcode: -5003, message: COOKIE }]);
-  assert.equal((await client.sign(CN)).status, 'signed');
-  assert.equal((await client.sign(OS)).status, 'already');
-  assert.equal(requests[1].url.pathname, '/event/luna/hk4e/sign');
-  assert.equal(requests[1].url.searchParams.get('act_id'), 'e202311201442471');
-  assert.equal(JSON.parse(requests[1].init.body).uid, CN.uid);
-  assert.equal(requests[3].url.pathname, '/event/sol/sign');
-  assert.equal(requests[3].url.searchParams.get('act_id'), 'e202102251931481');
-  assert.ok(!Object.hasOwn(JSON.parse(requests[3].init.body), 'uid'));
-  assert.equal(requests[1].init.headers['x-rpc-signgame'], 'hk4e');
+test('retired sign and community mutation entry points cannot issue requests', async () => {
+  const { client, requests } = mockClient([]);
+  assert.equal(client.sign, undefined);
+  for (const kind of ['sign', 'signInfo', 'bbs_sign', 'upvotePost', 'getShareConf', 'exchange', 'https://api-takumi.mihoyo.com/event/luna/hk4e/sign']) {
+    assert.equal((await client.query(kind, CN)).code, 'unsupported');
+    assert.equal((await client.query(kind, OS)).code, 'unsupported');
+  }
+  assert.equal(requests.length, 0);
 });
 
 test('upstream failures are classified correctly and cannot echo credentials', async () => {
@@ -381,13 +369,13 @@ test('upstream failures are classified correctly and cannot echo credentials', a
   }
 });
 
-test('captcha with retcode zero blocks sign; successful payloads are also scrubbed', async () => {
-  const { client, requests } = mockClient([{ retcode: 0, data: { is_sign: false } }, { retcode: 0, data: { gt_result: { risk_code: 375, gt: 'test', challenge: 'test' } } }, { retcode: 0, data: { cookie: COOKIE, ltoken: 'synthetic-test-token', innocuous: 'echo synthetic-cookie-token', current_resin: 100 } }]);
-  assert.equal((await client.sign(CN)).code, 'verification_required');
+test('captcha with retcode zero blocks personal queries; successful payloads are also scrubbed', async () => {
+  const { client, requests } = mockClient([{ retcode: 0, data: { gt_result: { risk_code: 375, gt: 'test', challenge: 'test' } } }, { retcode: 0, data: { cookie: COOKIE, ltoken: 'synthetic-test-token', innocuous: 'echo synthetic-cookie-token', current_resin: 100 } }]);
+  assert.equal((await client.query('dailyNote', CN)).code, 'verification_required');
   const result = await client.query('dailyNote', CN);
   assert.ok(!JSON.stringify(result).includes('synthetic'));
   assert.equal(result.data.current_resin, 100);
-  assert.equal(requests.length, 3);
+  assert.equal(requests.length, 2);
 });
 
 test('timeout aborts even an injected fetch that ignores its signal and errors are safe', async () => {
@@ -566,14 +554,13 @@ test('FP failures cool down repeated commands then permit another explicit attem
   assert.equal(requests.length, 3);
 });
 
-test('international requests and CN login/ledger/calculator/sign operations do not call the CN FP endpoint', async () => {
-  const { client, requests } = mockClient([{ retcode: 0, data: {} }, { retcode: 0, data: { list: [] } }, { retcode: 0, data: {} }, { retcode: 0, data: {} }, { retcode: 0, data: { is_sign: true } }], { deviceFp: undefined });
+test('international requests and CN login/ledger/calculator reads do not call the CN FP endpoint', async () => {
+  const { client, requests } = mockClient([{ retcode: 0, data: {} }, { retcode: 0, data: { list: [] } }, { retcode: 0, data: {} }, { retcode: 0, data: {} }], { deviceFp: undefined });
   assert.equal((await client.query('dailyNote', OS)).ok, true);
   assert.equal((await client.roles(COOKIE)).ok, true);
   assert.equal((await client.query('ledger', CN, { month: 9 })).ok, true);
   assert.equal((await client.query('detail', CN, { avatar_id: 10000002 })).ok, true);
-  assert.equal((await client.sign(CN)).status, 'already');
-  assert.equal(requests.length, 5);
+  assert.equal(requests.length, 4);
   assert.ok(requests.every(({ url, init }) => url.href !== FP_ENDPOINT && !Object.hasOwn(init.headers, 'x-rpc-device_fp')));
 });
 

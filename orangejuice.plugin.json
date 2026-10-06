@@ -28,7 +28,11 @@
     "#原神七圣牌组",
     "#原神七圣卡牌",
     "#原神祈愿分析",
-    "#原神状态"
+    "#原神状态",
+    "#原神米游币",
+    "#原神米游币任务",
+    "#原神版本数据",
+    "#原神更新版本数据"
   ],
   "commandTable": [
     {
@@ -60,11 +64,6 @@
           "enabled": false,
           "resinThreshold": 180,
           "intervalMinutes": 15
-        },
-        "autoSign": {
-          "enabled": false,
-          "time": "08:10",
-          "timezone": "Asia/Shanghai"
         },
         "providers": {
           "enka": true,
@@ -157,21 +156,6 @@
           "path": "notifications.intervalMinutes",
           "label": "巡检间隔分钟",
           "type": "integer"
-        },
-        {
-          "path": "autoSign.enabled",
-          "label": "允许用户订阅自动签到",
-          "type": "boolean"
-        },
-        {
-          "path": "autoSign.time",
-          "label": "每天签到时间（HH:mm）",
-          "type": "string"
-        },
-        {
-          "path": "autoSign.timezone",
-          "label": "签到时区",
-          "type": "string"
         },
         {
           "path": "providers.enka",

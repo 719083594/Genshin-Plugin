@@ -7,3 +7,5 @@ export {CloudClient,CloudError} from './lib/cloud.mjs';
 export {Subscriptions} from './lib/subscriptions.mjs';
 export {MysQrLogin} from './lib/mys-qr.mjs';
 export {ManualVerification} from './lib/manual-verification.mjs';
+export {PackageHistory} from './lib/package-history.mjs';
+export {MiyousheCoinClient} from './lib/miyoushe-coins.mjs';
