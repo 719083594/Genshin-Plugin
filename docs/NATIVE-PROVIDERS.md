@@ -1,6 +1,6 @@
 # 原神组合功能、安装与实际验收
 
-账户统一使用提瓦特助手的 AES-256-GCM 库，包括 QQ、账号 UID、备注、Cookie 与滚动备份。私聊 `#原神扫码登录 [UID]` 或 `#原神绑定Cookie UID Cookie` 核验本人角色后保存；多号由 `#原神账户/切换/解绑` 管理。真实官方扫码端点已验证创建与 pending，本人确认后的完整授权链路仍待验收。不复制到原生明文 DB/YAML/Redis CK 池，也不使用原 genshin 的裸 `#绑定Cookie`、公共 CK、跨 QQ 账号绑定与 authkey 缓存入口。组合面板可使用公开缓存；个人只读查询通过当前 QQ 的临时会话对象从 AES 库读取。stoken 持久化/兑换和米游币尚未完成加密适配，当前保持待实现。
+账户统一使用提瓦特助手的 AES-256-GCM 库，包括 QQ、账号 UID、备注、Cookie 与滚动备份。私聊 `#原神扫码登录 [UID]` 或 `#原神绑定Cookie UID Cookie` 核验本人角色后保存；多号由 `#原神账户/切换/解绑` 管理。真实官方扫码创建/pending/本人确认及角色核验已成功，AES 保存了一个国服账户。不复制到原生明文 DB/YAML/Redis CK 池，也不使用原 genshin 的裸 `#绑定Cookie`、公共 CK、跨 QQ 账号绑定与 authkey 缓存入口。组合面板可使用公开缓存；个人只读查询通过当前 QQ 的临时会话对象从 AES 库读取。stoken 持久化/兑换和米游币尚未完成加密适配，当前保持待实现。
 
 ## 外部源码快照
 
@@ -64,9 +64,23 @@ installNativeAccountGuard({ NoteUser, MysUser, MysInfo, MysApi });
 await runNativeScope(event, () => originalHandler());
 ```
 
-前三个类可由 TRSS Runtime 的 getter 取得；MysApi 必须显式读取 `plugins/genshin/model/mys/mysApi.js` 的 default，Runtime 没有 MysApi getter。guard 替换固定源码中会初始化原生账户的静态 API，直接构造 MysApi 的查询也转入已核验的只读核心协议；原 Cookie 字段赋值被丢弃，无 scope 不读取账户、不初始化公共 CK。Runtime 早于处理函数创建用户时只得到空临时对象，后台 forEach 不遍历账户。真实个人游戏接口仍需本人授权验收。
+前三个类可由 TRSS Runtime 的 getter 取得；MysApi 必须显式读取 `plugins/genshin/model/mys/mysApi.js` 的 default，Runtime 没有 MysApi getter。guard 替换固定源码中会初始化原生账户的静态 API，直接构造 MysApi 的查询也转入核对过的只读核心协议；原 Cookie 字段赋值被丢弃，无 scope 不读取账户、不初始化公共 CK。Runtime 早于处理函数创建用户时只得到空临时对象，后台 forEach 不遍历账户。role_combat/hard_challenge/ledger/deckList 已验证本人真实 API；官方设备指纹已真实签发并部署，index/dailyNote/spiralAbyss 从 5003 变为 1034（verification_required）。私聊 `#原神安全验证` 的官方 v3 挑战创建已成功，最终真人回执和查询恢复仍待本人；其余未核验项不能推断成功。
 
-默认群内只提供 UID，个人查询限私聊；如明确允许本人在群内查询，需显式启用 allowGroupCookie，仍仅使用发起者自己的 AES 账户。`@其他用户`、其他游戏与外部 UID 不会借用 Cookie。整份独立祈愿和订阅路由/去重状态也采用 AES-256-GCM；祈愿文件名由密钥与账户对应 AAD 计算 HMAC-SHA256，路径不含 QQ/UID，用户主动导出的 UIGF 为可交换明文文件。旧祈愿路径仅兼容读取，成功重新导入并核验后清理未变更的旧文件。桥接不是任意外部代码的文件沙箱：面板、群榜、收藏和原生游戏记录另有缓存，必须另外审计其数据与权限；旧实例其他明文数据也须迁移，不能把新文件加密宣传为全部外部文件已加密。
+默认群内只提供 UID，个人查询限私聊；如明确允许本人在群内查询，需显式启用 allowGroupCookie，仍仅使用发起者自己的 AES 账户。`@其他用户`、其他游戏与外部 UID 不会借用 Cookie。整份独立祈愿和订阅路由/去重状态也采用 AES-256-GCM；祈愿文件名由密钥与账户对应 AAD 计算 HMAC-SHA256，路径不含 QQ/UID。旧祈愿/订阅已加入启动和读取迁移，回验后清理确认未变的旧源，错钥拒绝另建空库。私聊上传使用内存 Buffer，CLI 二维码在终端显示、普通 command JSON 写 stdout；只有用户显式 export 才创建指定明文 UIGF 文件。
+
+## 原生缓存加密范围
+
+当前 index 已安装以下原创缓存适配器，复用实例 credentialsKey，禁止将 Cookie/_ck/token/authkey 写入原生缓存。包含这些适配器的新版已经线上部署，32 个原生类与独立核心共 33 类加载成功，无构造失败；真实 Redis Lua 合成旧数据迁移、凭据剥离、排名顺序与原始键删除全部通过，测试键已清理。完整图片/个人接口仍需分别验收。
+
+| 适配器 | 受控原路径/命名空间 | 保存方式与边界 |
+| --- | --- | --- |
+| native-storage | miao Data 的 `data/PlayerData/gs/*.json`、`data/UserData/*.json`，宿主默认/root/yunzai 根 | 正文全 AES、HMAC 文件名；读/写/删除保持同步 API；旧 UserData 仅加密，不运行原格式转换或明文备份；resources、SR 与其他插件根仍委托原逻辑 |
+| native-file-cache | `data/NoteData/<UID>.json`、`plugins/FanSky_Qs/resources/cache/<UID>.json`、`data/FanSky_Qs/Top/{ChestTop,AchieveTop}.json`、`plugins/xhh-TL/data/resin_timer.json` | 仅这些直接 fs JSON 缓存重定向至 AES/HMAC 文件；保留原 fs 返回类型，旧源回验且未变化才删除 |
+| native-redis | `miao:rank:`、`miao:role-card:`、`miao:user-cfg:`、`miao:profile-cd:`、`FanSky:Teyvet:`、`FanSky:SmallFunctions:ChestTop:`、`FanSky:SmallFunctions:AchieveTop:`、`xhh:show_`、`xhh:hide_`、`xhh:transformer_` | 键、完整值、hash 字段、榜单成员与分数存单 AES 文件，榜单在内存排序；受控 namespace 不再向原 Redis 写账号缓存；transformer_ck 凭据缓存写入被拒绝 |
+
+面板/文件旧源先加密并回读，再核对同一源未变化才清理；损坏、变更冲突或清理失败保留并报错。Redis 旧 string/hash/zset 先写 AES 回验，再用原 Redis Lua 比对类型、全部值与绝对到期时间后 CAS 删除；带 TTL 迁移需 Redis 7 的 PEXPIRETIME，无 eval 或缺能力时保留原值并明确报错。真实 Redis Lua 合成旧数据迁移、凭据剥离、排名顺序与原始键删除已线上验收，测试键已清理；这是合成样本验证，不能推断任意旧第三方数据均已迁移。
+
+非受控文件/Redis namespace 继续原逻辑，未知 Redis 方法、multi/sendCommand 也不在这个兼容钩子的范围内。账户桥与缓存适配器不是任意第三方代码的文件沙箱；新增未经审计的路径或调用方式不能自动获得同样保证。
 
 原生凭据入口及理由：
 
@@ -80,9 +94,11 @@ await runNativeScope(event, () => originalHandler());
 | xhh resinPush/autoSign/autoBbsCoin | 三类不注册 | 手动订阅写原生明文 JSON，后台全局账号遍历；社区 stoken 尚无加密适配 |
 | genshin ledger.ledgerTask | 移除规则且 task 清空 | 原石札记定时账户状态写入原生缓存；手动札记只读协议已加入核心，会话/图片待验收 |
 
-当前桥接支持源码核对过的原神只读 index、dailyNote、spiralAbyss、role_combat、hard_challenge/popularity、character/detail、养成、活动和 gcg 基础接口；新增 ledger/ys_ledger、blueprint/blueprintCompute、deckList 与角色/行动卡牌列表也已加入允许范围。独立命令为 `#原神札记 [月份]`、`#原神尘歌壶方案 模数`、`#原神家具计算 JSON`、`#原神七圣牌组/七圣卡牌`。本人响应与旧图片调用的参数兼容仍需验收；UserGame、getFp、充值 authkey、stoken 与 bbs_sign 不由桥接执行，不能用公共 CK 或原生明文保存来填补缺口。
+当前桥接支持源码核对过的原神只读 index、dailyNote、spiralAbyss、role_combat、hard_challenge/popularity、character/detail、养成、活动和 gcg 基础接口；新增 ledger/ys_ledger、blueprint/blueprintCompute、deckList 与角色/行动卡牌列表也已加入允许范围。独立命令为 `#原神札记 [月份]`、`#原神尘歌壶方案 模数`、`#原神家具计算 JSON`、`#原神七圣牌组/七圣卡牌`。家具模数 match 数组与 wrapped body 已有兼容测试；未核验的本人响应和旧图片仍需验收。UserGame、充值 authkey、stoken 与 bbs_sign 不由桥接执行；官方设备指纹已由独立核心接入，当前 1034 由本人使用私聊人工验证入口操作，最终放行仍需本人提交后重查询。
 
-月谕圣牌与七圣卡牌不同：miao 的 `apps/stat/RoleCard.js` 从 role_combat 的 tarot_card_state 读取收藏，个人读协议已在范围内；群交换会把 QQ/UID、称呼和收藏状态写入原 Redis 缓存。当前默认群内不提供 Cookie，尚未完成该群缓存加密适配和图片验收，不能因七圣列表请求已写便宣称群圣牌交换已覆盖。
+安全验证由独立核心原创 `#原神安全验证` / `#原神提交验证 nonce 回执` / `#原神取消验证` 管理。官方 create 已实测签发 v3 挑战；HTML 用官方 gt.js 让本人手动完成，QQ 浏览器不支持时下载 HTML 用系统浏览器打开，生成整条命令后复制回同一 QQ 私聊。五分钟会话只存在内存，绑定 QQ、所选 UID、Cookie 的 SHA-256 与挑战前 32 字符；切号/解绑取消，重复回执不能再次提交。HTML 无 Cookie/UID/设备标识，设备上下文和官方提交后短期放行信息也只在内存，不交给原生 CK 池。最终真人 submit 与查询是否放行仍待本人，不能用自动 solver、公共 CK 或明文账户填补缺口。
+
+月谕圣牌与七圣卡牌不同：miao 的 `apps/stat/RoleCard.js` 从 role_combat 的 tarot_card_state 读取收藏，个人读协议已在范围内；其 QQ/UID、称呼与收藏状态缓存已纳入 native-redis 的 role-card 前缀加密，适配器已上线且真实 Redis 合成迁移/排序验收通过。当前默认群内不提供 Cookie，收藏图片与完整群交换仍待验收，不能因七圣牌组 API 成功便宣称群圣牌交换已通过。
 
 ## 已选择功能与尚未验收项
 
@@ -92,9 +108,9 @@ await runNativeScope(event, () => originalHandler());
 
 功能/API/授权完整逐项映射由 `FEATURE-AUDIT.md` 记录；无 Cookie 的公开接口探测成功只证明当次数据源可读，不证明账户/QQ图片/群排行功能已验收。
 
-此前宿主已确认 40 类可加载、Runtime.MysInfo/NoteUser/e.user 存在，FanSky 规则资源已取得。这是加密约束收紧前的装载证据。当前源码收紧为 32 类，本轮完整部署与消息验收仍待完成；旧证据不代表新选择器、真实用户扫码、个人记录或 QQ 图片通过。
+新缓存版已线上部署，32 个原生类与独立核心共 33 类加载成功，无构造失败；Runtime.MysInfo/NoteUser/e.user 与 FanSky 资源已核验。本人国服扫码并 AES 保存一个账户、role_combat/hard_challenge/ledger/deckList 的真实 API 已成功；官方设备指纹真实签发及真实 Redis Lua 合成迁移、凭据剥离、排序、原键删除均已验证。index/dailyNote/spiralAbyss 当前 1034，原创人工入口已写且官方 v3 挑战创建成功，最终本人 submit 与查询恢复待验收，不能据此宣布全部个人接口或 QQ 图片/推送通过。
 
-部署验收至少包括：原神公开面板、深渊/剧诗公开配置图片、小火花深渊配队、FanSky 完整参数成就榜响应；拒绝 `*面板/%面板/#星铁面板/#绝区零体力/#鸣潮体力`；非主人不能更新小助手配置；无用户订阅时任务不发消息。本人私聊扫码/授权后，再验证个人便笺、深渊、剧诗、札记、家具、七圣牌组/卡牌、祈愿、队伍计算与独立订阅，核对原生 DB/YAML/Redis CK 池没有新增账号。stoken、群收藏缓存等缺口应直接报告未覆盖，不能以“模块已载入”代替。
+剩余验收至少包括：原神公开面板、深渊/剧诗公开配置图片、小火花深渊配队、FanSky 完整参数成就榜响应；拒绝 `*面板/%面板/#星铁面板/#绝区零体力/#鸣潮体力`；非主人不能更新小助手配置；无用户订阅时任务不发消息。本人通过私聊人工入口完成官方极验并提交后，重试当前 1034 的个人资料/便笺/深渊，验证家具/卡牌、祈愿、队伍计算与独立订阅；继续核对真实用户图形调用中原生 DB/YAML/Redis CK 池无新增凭据、列明缓存不再新增明文账号标识。真实 Redis 的合成迁移与排序已通过，完整实际群榜图片仍待验收。stoken 等缺口应直接报告未覆盖，不能以“模块已载入”代替。
 
 ## API与素材致谢
 

@@ -37,6 +37,12 @@ test('日志安装保持this与返回值且更新前缀不会重复包装',()=>{
   assert.equal(logger.info({msg:'#提瓦特 绑定Cookie 123456789 synthetic-token'}),'done');assert.doesNotMatch(JSON.stringify(rows),/synthetic/);assert.equal(rows.length,1);
 });
 
+test('人工验证回执命令和结构字段不进入日志',()=>{
+  const command='#原神提交验证 '+ 'a'.repeat(32)+' '+Buffer.from(JSON.stringify({geetest_validate:'synthetic-proof'})).toString('base64url');
+  assert.doesNotMatch(redactGameCredentials(command),/synthetic|aaaa/);
+  assert.equal(redactGameCredentials({geetest_validate:'synthetic-proof',challenge:'synthetic-challenge'}).geetest_validate,'[凭据已隐藏]');
+});
+
 test('OneBot二维码及私聊导出base64文件不写进日志，普通文件路径保留',()=>{
   const encoded=Buffer.from('{"uid":"123456789","private":"synthetic-account-data"}').toString('base64');
   const value={params:{message:[{type:'image',data:{file:'base64://'+encoded}}]},export:{file:'base64://'+encoded,name:'Genshin-profile.json'},public:{file:'https://official.example/image.png'}};

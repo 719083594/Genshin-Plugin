@@ -26,7 +26,7 @@ function fixture(t) {
     get: (owner, uid) => rows.get(owner)?.find(row => row.uid === uid) || null,
     selected: owner => rows.get(owner)?.find(row => row.selected) || null
   };
-  const mys = new HoyolabClient({ fetch: async (url, init) => {
+  const mys = new HoyolabClient({deviceFp:'synthetic-fp-for-test', fetch: async (url, init) => {
     requests.push({ url: new URL(url), init });
     return { ok: true, url, text: async () => JSON.stringify({ retcode: 0, data: { current_resin: 88 } }) };
   } });

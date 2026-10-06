@@ -37,7 +37,7 @@ function mockClient(responses = [{ retcode: 0, data: {} }], options = {}) {
     if (result instanceof Error) throw result;
     return { ok: true, status: 200, url, text: async () => JSON.stringify(result) };
   };
-  return { client: new HoyolabClient({ fetch, now: () => 1700000000000, ...options }), requests };
+  return { client: new HoyolabClient({ fetch, now: () => 1700000000000, deviceFp: 'synthetic-fixed-test-fp', ...options }), requests };
 }
 
 test('UID recognition validates all servers, including the extended Asia range', () => {
@@ -392,7 +392,7 @@ test('captcha with retcode zero blocks sign; successful payloads are also scrubb
 
 test('timeout aborts even an injected fetch that ignores its signal and errors are safe', async () => {
   let signal;
-  const client = new HoyolabClient({ timeoutMs: 10, fetch: (_url, init) => { signal = init.signal; return new Promise(() => {}); } });
+  const client = new HoyolabClient({ timeoutMs: 10, deviceFp: 'synthetic-fixed-test-fp', fetch: (_url, init) => { signal = init.signal; return new Promise(() => {}); } });
   assert.equal((await client.query('dailyNote', CN)).code, 'timeout');
   assert.equal(signal.aborted, true);
   const { client: broken } = mockClient([new Error(COOKIE)]);
@@ -403,12 +403,12 @@ test('timeout aborts even an injected fetch that ignores its signal and errors a
 
 test('HTTP redirects, rate limits and malformed JSON produce safe failures', async () => {
   const statuses = [302, 429];
-  const client = new HoyolabClient({ fetch: async () => ({ ok: false, status: statuses.shift() }) });
+  const client = new HoyolabClient({ deviceFp: 'synthetic-fixed-test-fp', fetch: async () => ({ ok: false, status: statuses.shift() }) });
   assert.equal((await client.query('dailyNote', CN)).code, 'http_error');
   assert.equal((await client.query('dailyNote', CN)).code, 'rate_limited');
-  const malformed = new HoyolabClient({ fetch: async () => ({ ok: true, text: async () => COOKIE }) });
+  const malformed = new HoyolabClient({ deviceFp: 'synthetic-fixed-test-fp', fetch: async () => ({ ok: true, text: async () => COOKIE }) });
   assert.equal((await malformed.query('dailyNote', CN)).code, 'network_error');
-  const redirected = new HoyolabClient({ fetch: async () => ({ ok: true, redirected: false, url: 'https://evil.example/api', text: async () => '{}' }) });
+  const redirected = new HoyolabClient({ deviceFp: 'synthetic-fixed-test-fp', fetch: async () => ({ ok: true, redirected: false, url: 'https://evil.example/api', text: async () => '{}' }) });
   assert.equal((await redirected.query('dailyNote', CN)).code, 'redirect_rejected');
 });
 
@@ -434,4 +434,227 @@ test('bot rejects Cookie ownership mismatch without storing the credentials', as
   assert.match(reply.text, /不拥有该UID/);
   assert.equal(bot.accounts.selected(OWNER), null);
   assert.equal(requests.length, 1);
+});
+
+const FP_ENDPOINT = 'https://public-data-api.mihoyo.com/device-fp/api/getFp';
+const FP_A = '38d7eeaaaa001';
+const FP_B = '38d7eeaaaa002';
+const fpResponse = fingerprint => ({ retcode: 0, data: { code: 200, device_fp: fingerprint } });
+const jsonResponse = (url, data) => ({ ok: true, status: 200, url, text: async () => JSON.stringify(data) });
+
+test('record budget includes a cold CN FP request while injected and international requests use one', () => {
+  const { client, requests } = mockClient([], { deviceFp: undefined });
+  assert.equal(client.maxRecordRequests(CN), 2);
+  assert.equal(client.maxRecordRequests(OS), 1);
+  const { client: provided } = mockClient([]);
+  assert.equal(provided.maxRecordRequests(CN), 1);
+  assert.equal(requests.length, 0);
+});
+
+test('CN record preflight obtains an official Web FP with no credentials or fabricated hardware', async () => {
+  const { client, requests } = mockClient([fpResponse(FP_A), { retcode: 0, data: { current_resin: 100, device_fp: FP_A, device_id: 'ignored-device', note: `echo ${FP_A} synthetic-test-token` } }], { deviceFp: undefined });
+  const result = await client.query('dailyNote', CN);
+  assert.equal(result.ok, true);
+  assert.equal(result.data.current_resin, 100);
+  assert.equal(requests.length, 2);
+  assert.equal(requests[0].url.href, FP_ENDPOINT);
+  assert.equal(requests[0].init.redirect, 'error');
+  assert.equal(requests[0].init.method, 'POST');
+  assert.deepEqual(Object.keys(requests[0].init.headers).sort(), ['Content-Type', 'User-Agent']);
+  const body = JSON.parse(requests[0].init.body);
+  assert.equal(body.platform, '4');
+  assert.equal(body.app_name, 'bbs_cn');
+  assert.match(body.device_fp, /^\d{10}$/);
+  assert.match(body.seed_id, /^[a-f0-9]{16}$/);
+  assert.equal(body.seed_time, '1700000000000');
+  assert.match(body.device_id, /^[a-f0-9]{32}$/);
+  assert.equal(body.device_id, requests[1].init.headers['x-rpc-device_id']);
+  assert.equal(requests[1].init.headers['x-rpc-device_fp'], FP_A);
+  assert.ok(requests[1].init.headers.Cookie.includes('synthetic-test-token'));
+  const fields = JSON.parse(body.ext_fields);
+  assert.equal(Object.keys(fields).length, 28);
+  assert.equal(fields.userAgent, `Node.js/${process.versions.node}`);
+  assert.equal(fields.browserTimeZone, Intl.DateTimeFormat().resolvedOptions().timeZone);
+  assert.ok(Object.entries(fields).every(([key, value]) => ['userAgent', 'browserTimeZone'].includes(key) || value === 'unknown'));
+  for (const field of ['model', 'IDFV', 'accelerometer', 'gyroscope', 'magnetometer']) assert.ok(!Object.hasOwn(fields, field));
+  for (const secret of [COOKIE, 'synthetic-test-token', CN.uid]) assert.ok(!requests[0].init.body.includes(secret));
+  assert.ok(!JSON.stringify(result).includes(FP_A));
+  assert.ok(!JSON.stringify(result).includes('synthetic-test-token'));
+  assert.ok(!Object.hasOwn(result.data, 'device_id'));
+  assert.ok(!JSON.stringify(client).includes(FP_A));
+});
+
+test('FPs are scoped to deterministic UID devices and expire in memory without persistence', async t => {
+  let current = 1700000000000;
+  const { store, root } = storeFor(t);
+  store.bind(OWNER, { ...CN, privateChat: true });
+  const before = fs.readFileSync(store.file, 'utf8');
+  const { client, requests } = mockClient([fpResponse(FP_A), { retcode: 0, data: {} }, { retcode: 0, data: {} }, fpResponse(FP_B), { retcode: 0, data: {} }, fpResponse('38d7eeaaaa003'), { retcode: 0, data: {} }], { deviceFp: undefined, now: () => current, fingerprintTtlMs: 1000 });
+  assert.equal((await client.query('index', store.get(OWNER))).ok, true);
+  assert.equal((await client.query('abyss', CN)).ok, true);
+  assert.equal((await client.query('index', { ...CN, uid: '100000002' })).ok, true);
+  current += 1001;
+  assert.equal((await client.query('dailyNote', CN)).ok, true);
+  const fpRequests = requests.filter(({ url }) => url.href === FP_ENDPOINT);
+  assert.equal(fpRequests.length, 3);
+  const devices = fpRequests.map(({ init }) => JSON.parse(init.body).device_id);
+  assert.notEqual(devices[0], devices[1]);
+  assert.equal(devices[0], devices[2]);
+  assert.equal(requests[2].init.headers['x-rpc-device_fp'], FP_A);
+  assert.equal(requests[4].init.headers['x-rpc-device_fp'], FP_B);
+  assert.equal(requests[6].init.headers['x-rpc-device_fp'], '38d7eeaaaa003');
+  assert.equal(fs.readFileSync(store.file, 'utf8'), before);
+  assert.deepEqual(fs.readdirSync(path.join(root, 'data')).sort(), [path.basename(store.file)]);
+});
+
+test('overlapping queries share only the same UID FP request and preserve their own account headers', async () => {
+  let finish;
+  const gate = new Promise(resolve => { finish = resolve; });
+  const requests = [];
+  let fpCalls = 0;
+  const other = { ...CN, uid: '100000002', cookie: 'ltuid=654321; ltoken=other-synthetic-token;' };
+  const devices = new Map();
+  const client = new HoyolabClient({ fetch: async (url, init) => {
+    requests.push({ url: new URL(url), init });
+    if (url === FP_ENDPOINT) {
+      const number = ++fpCalls;
+      const device = JSON.parse(init.body).device_id;
+      const fp = number === 1 ? FP_A : FP_B;
+      devices.set(device, fp);
+      await gate;
+      return jsonResponse(url, fpResponse(fp));
+    }
+    assert.equal(init.headers['x-rpc-device_fp'], devices.get(init.headers['x-rpc-device_id']));
+    const uid = new URL(url).searchParams.get('role_id');
+    assert.equal(init.headers.Cookie, normalizeCookie(uid === CN.uid ? COOKIE : other.cookie));
+    return jsonResponse(url, { retcode: 0, data: { uid } });
+  } });
+  const operations = [client.query('dailyNote', CN), client.query('index', CN), client.query('index', other)];
+  assert.equal(fpCalls, 2);
+  assert.equal(requests.length, 2);
+  finish();
+  const results = await Promise.all(operations);
+  assert.ok(results.every(result => result.ok));
+  assert.equal(requests.length, 5);
+});
+
+test('nested FP failure codes and bootstrap echoes never authorize a personal record request', async () => {
+  for (const code of [403, undefined, '200']) {
+    const { client, requests } = mockClient([{ retcode: 0, data: { code, device_fp: FP_A, cookie: COOKIE, message: COOKIE } }], { deviceFp: undefined });
+    const result = await client.query('index', CN);
+    assert.equal(result.code, 'fingerprint_unavailable');
+    assert.equal(requests.length, 1);
+    assert.ok(!JSON.stringify(result).includes('synthetic'));
+  }
+  const client = new HoyolabClient({ fetch: async (url, init) => jsonResponse(url, fpResponse(JSON.parse(init.body).device_fp)) });
+  assert.equal((await client.query('dailyNote', CN)).code, 'fingerprint_unavailable');
+  for (const fingerprint of ['', null, 'x', 'fp\r\nCookie: leaked', 'a'.repeat(129)]) {
+    const { client: invalid, requests } = mockClient([fpResponse(fingerprint)], { deviceFp: undefined });
+    assert.equal((await invalid.query('index', CN)).code, 'fingerprint_unavailable');
+    assert.equal(requests.length, 1);
+  }
+});
+
+test('FP failures cool down repeated commands then permit another explicit attempt', async () => {
+  let current = 1700000000000;
+  const { client, requests } = mockClient([{ retcode: 0, data: { code: 403, device_fp: FP_A } }, fpResponse(FP_B), { retcode: 0, data: {} }], { deviceFp: undefined, now: () => current, fingerprintFailureTtlMs: 1000 });
+  assert.equal((await client.query('dailyNote', CN)).code, 'fingerprint_unavailable');
+  assert.equal((await client.query('index', CN)).code, 'fingerprint_unavailable');
+  assert.equal(requests.length, 1);
+  current += 1001;
+  assert.equal((await client.query('index', CN)).ok, true);
+  assert.equal(requests.length, 3);
+});
+
+test('international requests and CN login/ledger/calculator/sign operations do not call the CN FP endpoint', async () => {
+  const { client, requests } = mockClient([{ retcode: 0, data: {} }, { retcode: 0, data: { list: [] } }, { retcode: 0, data: {} }, { retcode: 0, data: {} }, { retcode: 0, data: { is_sign: true } }], { deviceFp: undefined });
+  assert.equal((await client.query('dailyNote', OS)).ok, true);
+  assert.equal((await client.roles(COOKIE)).ok, true);
+  assert.equal((await client.query('ledger', CN, { month: 9 })).ok, true);
+  assert.equal((await client.query('detail', CN, { avatar_id: 10000002 })).ok, true);
+  assert.equal((await client.sign(CN)).status, 'already');
+  assert.equal(requests.length, 5);
+  assert.ok(requests.every(({ url, init }) => url.href !== FP_ENDPOINT && !Object.hasOwn(init.headers, 'x-rpc-device_fp')));
+});
+
+test('FP HTTP errors, unsafe redirects, malformed and oversized responses stay safe and fixed-domain', async () => {
+  const cases = [
+    [() => ({ ok: false, status: 429 }), 'rate_limited'],
+    [() => ({ ok: false, status: 502 }), 'http_error'],
+    [() => ({ ok: true, redirected: true }), 'http_error'],
+    [() => jsonResponse('https://evil.example/device-fp/api/getFp', fpResponse(FP_A)), 'redirect_rejected'],
+    [() => ({ ok: true, text: async () => COOKIE }), 'network_error'],
+    [() => ({ ok: true, text: async () => 'x'.repeat(65537) }), 'invalid_response'],
+    [() => jsonResponse(FP_ENDPOINT, {}), 'invalid_response'],
+    [() => { throw new Error(COOKIE); }, 'network_error']
+  ];
+  for (const [response, code] of cases) {
+    let calls = 0;
+    const client = new HoyolabClient({ fetch: async (url, init) => {
+      ++calls;
+      assert.equal(url, FP_ENDPOINT);
+      assert.ok(!Object.hasOwn(init.headers, 'Cookie'));
+      return response();
+    } });
+    const result = await client.query('index', CN);
+    assert.equal(result.code, code);
+    assert.equal(calls, 1);
+    assert.ok(!JSON.stringify(result).includes('synthetic'));
+  }
+});
+
+test('FP challenges stop before game requests and do not trigger external verification or retries', async () => {
+  const { client, requests } = mockClient([{ retcode: 0, data: { code: 200, device_fp: FP_A, gt_result: { risk_code: 375, gt: 'test-challenge' }, cookie: COOKIE } }], { deviceFp: undefined });
+  const result = await client.query('index', CN);
+  assert.equal(result.code, 'verification_required');
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].url.href, FP_ENDPOINT);
+  assert.ok(!JSON.stringify(result).includes('test-challenge'));
+  assert.ok(!JSON.stringify(result).includes('synthetic'));
+});
+
+test('FP acquisition and body parsing have deadlines even for a fetch ignoring abort', async () => {
+  for (const hangOnBody of [false, true]) {
+    let signal;
+    let calls = 0;
+    const client = new HoyolabClient({ timeoutMs: 10, fetch: async (url, init) => {
+      ++calls; signal = init.signal;
+      assert.equal(url, FP_ENDPOINT);
+      if (hangOnBody) return { ok: true, text: () => new Promise(() => {}) };
+      return new Promise(() => {});
+    } });
+    const result = await client.query('index', CN);
+    assert.equal(result.code, 'timeout');
+    await new Promise(resolve => setTimeout(resolve, 5));
+    assert.equal(signal.aborted, true);
+    assert.equal(calls, 1);
+  }
+});
+
+test('one query deadline includes FP preflight plus the personal record request', async () => {
+  let recordSignal;
+  const client = new HoyolabClient({ timeoutMs: 40, fetch: async (url, init) => {
+    if (url === FP_ENDPOINT) {
+      await new Promise(resolve => setTimeout(resolve, 20));
+      return jsonResponse(url, fpResponse(FP_A));
+    }
+    recordSignal = init.signal;
+    return new Promise(() => {});
+  } });
+  const result = await client.query('dailyNote', CN);
+  assert.equal(result.code, 'timeout');
+  assert.equal(recordSignal.aborted, true);
+});
+
+test('a game 5003 response invalidates issued FP without an automatic security-check retry', async () => {
+  let current = 1700000000000;
+  const { client, requests } = mockClient([fpResponse(FP_A), { retcode: 5003, message: COOKIE, data: {} }, fpResponse(FP_B), { retcode: 0, data: {} }], { deviceFp: undefined, now: () => current, fingerprintFailureTtlMs: 1000 });
+  assert.equal((await client.query('index', CN)).code, 'verification_required');
+  assert.equal(requests.length, 2);
+  assert.equal((await client.query('dailyNote', CN)).code, 'verification_required');
+  assert.equal(requests.length, 2);
+  current += 1001;
+  assert.equal((await client.query('index', CN)).ok, true);
+  assert.equal(requests.length, 4);
+  assert.equal(requests[3].init.headers['x-rpc-device_fp'], FP_B);
 });

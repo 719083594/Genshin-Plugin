@@ -6,3 +6,4 @@ export {HoyolabClient} from './lib/hoyolab.mjs';
 export {CloudClient,CloudError} from './lib/cloud.mjs';
 export {Subscriptions} from './lib/subscriptions.mjs';
 export {MysQrLogin} from './lib/mys-qr.mjs';
+export {ManualVerification} from './lib/manual-verification.mjs';

@@ -1,4 +1,4 @@
-import {privateFileBuffer} from './lib/private-file.mjs';
+import {privateFileUpload} from './lib/private-file.mjs';
 import {fileURLToPath} from 'node:url';import fs from 'node:fs';import path from 'node:path';
 import {Teyvat} from './api.mjs';import {loadNativeProviders} from './lib/native-providers.mjs';
 import {installLogRedaction} from './lib/log-redaction.mjs';
@@ -28,7 +28,7 @@ if(enabled){
   class TeyvatCommands extends Base{
     constructor(){const p=engine.config.read().prefix.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');super({name:'提瓦特助手',dsc:'原神独立核心',event:'message',priority:-8000,rule:[{reg:new RegExp('^'+p),fnc:'run',title:'原神专用助手',description:'#原神帮助：账户、便笺、挑战、展柜、资料、祈愿、版本与订阅'}]})}
     init(){engine.subscriptions.start()}
-    async run(e){const result=await engine.handle({...e,text:e.msg,owner:String(e.user_id),privateChat:!e.group_id});if(result.image){await e.reply([result.text,globalThis.segment?.image?.(result.image)||result.image]);if(result.qrSession)void engine.login.wait(String(e.user_id),result.qrSession,{privateChat:true}).then(async r=>{if(r.status==='Confirmed')await e.reply('米游社扫码及本人国服角色验证成功，账号凭据已AES加密保存：'+r.accounts.map(a=>a.uid).join('、')+'。');else if(!r.ok)await e.reply(r.message)}).catch(()=>{})}else if(result.file){if(!e.friend?.sendFile)await e.reply('协议端不支持私聊文件发送；请使用本地CLI export。');else await e.friend.sendFile(privateFileBuffer(result.file.data),result.file.name)}else if(result.handled)await e.reply(result.text);return result.handled}
+    async run(e){const result=await engine.handle({...e,text:e.msg,owner:String(e.user_id),privateChat:!e.group_id});if(result.image){await e.reply([result.text,globalThis.segment?.image?.(result.image)||result.image]);if(result.qrSession)void engine.login.wait(String(e.user_id),result.qrSession,{privateChat:true}).then(async r=>{if(r.status==='Confirmed')await e.reply('米游社扫码及本人国服角色验证成功，账号凭据已AES加密保存：'+r.accounts.map(a=>a.uid).join('、')+'。');else if(!r.ok)await e.reply(r.message)}).catch(()=>{})}else if(result.file){if(!e.friend?.sendFile)await e.reply('协议端不支持私聊文件发送；请使用本地CLI export。');else {if(result.text)await e.reply(result.text);const upload=privateFileUpload(result.file.data,result.file.name);await e.friend.sendFile(upload.buffer,upload.name)}}else if(result.handled)await e.reply(result.text);return result.handled}
   }
   const native=await loadNativeProviders({root,config:engine.config.read()});nativeStatus=native.status;engine.nativeStatus=native.status;apps={TeyvatCommands,...native.apps};globalThis.logger?.info?.('[Teyvat] 原神模块 '+Object.keys(native.apps).length+' 个');
 }

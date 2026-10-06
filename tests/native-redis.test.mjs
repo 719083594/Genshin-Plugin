@@ -14,7 +14,7 @@ const cacheFile=root=>path.join(root,'data','native-cache','redis.enc.json');
 function fixture(t){const root=fs.mkdtempSync(path.join(os.tmpdir(),'native-redis-test-')),key=randomBytes(32);t.after(()=>{const target=path.resolve(root);assert.equal(path.dirname(target),path.resolve(os.tmpdir()));assert.match(path.basename(target),/^native-redis-test-/);fs.rmSync(target,{recursive:true,force:true});});return{root,key};}
 function read(root,key){return decryptJson(JSON.parse(fs.readFileSync(cacheFile(root),'utf8')),{key,aad:AAD,maxBytes:32*1024*1024});}
 const order=entry=>Object.entries(entry.value).sort((a,b)=>a[1]-b[1]||Buffer.compare(Buffer.from(a[0]),Buffer.from(b[0])));
-function mockRedis({lua=true}={}){
+function mockRedis({lua=true,expiryAtomic=true}={}){
   const raw=new Map(),calls=[];let beforeDelete;
   const live=key=>{const entry=raw.get(key);if(entry?.expiresAt!==null&&entry?.expiresAt<=Date.now()){raw.delete(key);return null;}return entry??null;};
   const api={
@@ -31,7 +31,7 @@ function mockRedis({lua=true}={}){
   };
   if(lua)api.eval=async(script,{keys,arguments:args})=>{
     const key=keys[0];calls.push(['eval',script===NATIVE_REDIS_SNAPSHOT_LUA?'snapshot':'delete',key]);
-    if(script===NATIVE_REDIS_SNAPSHOT_LUA){const entry=live(key);if(!entry)return JSON.stringify({type:'none'});if(!['string','hash','zset'].includes(entry.type))return JSON.stringify({error:'unsupported_type'});const items=entry.type==='string'?[entry.value]:entry.type==='hash'?Object.entries(entry.value).flat():order(entry).flatMap(([member,score])=>[member,String(score)]);return JSON.stringify({type:entry.type,items,expireAt:entry.expiresAt??-1,serverNow:Date.now()});}
+    if(script===NATIVE_REDIS_SNAPSHOT_LUA){const entry=live(key);if(!entry)return JSON.stringify({type:'none'});if(!['string','hash','zset'].includes(entry.type))return JSON.stringify({error:'unsupported_type'});if(!expiryAtomic&&entry.expiresAt!==null)return JSON.stringify({error:'expiry_atomic_required'});const items=entry.type==='string'?[entry.value]:entry.type==='hash'?Object.entries(entry.value).flat():order(entry).flatMap(([member,score])=>[member,String(score)]);return JSON.stringify({type:entry.type,items,expireAt:entry.expiresAt??-1,serverNow:Date.now()});}
     assert.equal(script,NATIVE_REDIS_DELETE_LUA);if(beforeDelete){const hook=beforeDelete;beforeDelete=null;hook(key,raw);}
     const expected=JSON.parse(args[0]),entry=live(key);if(!entry)return 2;
     if(entry.type!==expected.type||(entry.expiresAt??-1)!==expected.expireAt)return 0;
@@ -142,4 +142,27 @@ test('linked storage ancestry is refused without writing the linked target',asyn
 test('expired cache and wrong type errors do not delegate plaintext writes',async t=>{
   const{redis}=install(t);const id='miao:rank:654321:mark:10000002';await redis.set(id,'plain',{PX:10});await new Promise(resolve=>setTimeout(resolve,20));assert.equal(await redis.get(id),null);assert.equal(await redis.ttl(id),-2);
   await redis.hSet(id,'one','1');await rejects(redis.get(id),'WRONGTYPE');await rejects(redis.zAdd(id,{value:'a',score:2}),'WRONGTYPE');assert.deepEqual(await redis.hGetAll(id),{one:'1'});
+});
+test('unrelated KEYS queries still delegate when private cache has a wrong key or stale lock',async t=>{
+  const{root,redis}=install(t);await redis.set('xhh:show_uid:123456','1');await redis.set('ordinary:value','kept');fs.writeFileSync(path.join(root,'data','native-cache','.redis.lock'),'');
+  assert.deepEqual(await redis.keys('ordinary:*'),['ordinary:value']);const wrong=mockRedis();wrong.raw.set('Yz:entry',{type:'string',value:'unrelated',expiresAt:null});installNativeRedis({redis:wrong,root,key:randomBytes(32)});assert.deepEqual(await wrong.keys('Yz:*'),['Yz:entry']);
+});
+test('all mutations of transformer credential cache are refused and every old type becomes a credential-free tombstone',async t=>{
+  const{root,key,redis}=install(t);const id='xhh:transformer_ck:123';for(const action of [()=>redis.set(id,'value'),()=>redis.expire(id,30),()=>redis.hSet(id,'field','secret'),()=>redis.hDel(id,'field'),()=>redis.zAdd(id,{value:'secret',score:1}),()=>redis.zRem(id,'secret')])await rejects(action(),'CREDENTIAL_CACHE_FORBIDDEN');
+  for(const type of ['hash','zset']){const id='xhh:transformer_ck:'+type;redis.raw.set(id,{type,value:type==='hash'?{cookie:'SECRET_COOKIE'}:{SECRET_MEMBER:20},expiresAt:null});assert.equal(await redis.get(id),'');assert.equal(redis.raw.has(id),false);assert.equal(read(root,key).entries[id].type,'string');}
+  assert.ok(!JSON.stringify(read(root,key)).includes('SECRET'));assert.equal(await redis.del('xhh:transformer_ck:hash','xhh:transformer_ck:zset'),2);
+});
+test('failed atomic file replacement leaves original Redis and encrypted file intact',async t=>{
+  const{root,redis}=install(t);await redis.get('xhh:show_uid:123456');const before=fs.readFileSync(cacheFile(root)),id='miao:rank:uid-info:100000007';redis.raw.set(id,{type:'string',value:'legacy',expiresAt:null});
+  const original=fs.renameSync;try{fs.renameSync=(source,target)=>{if(target===cacheFile(root))throw Object.assign(new Error('simulated write failure'),{code:'EIO'});return original(source,target);};await rejects(redis.get(id),'STORAGE_FAILED');}finally{fs.renameSync=original;}
+  assert.equal(redis.raw.get(id).value,'legacy');assert.deepEqual(fs.readFileSync(cacheFile(root)),before);assert.equal(await redis.get(id),'legacy');assert.equal(redis.raw.has(id),false);
+});
+test('failed encrypted readback preserves raw source and resumable encrypted pending record',async t=>{
+  const{root,key,redis}=install(t);await redis.get('xhh:show_uid:123456');const id='miao:rank:uid-info:100000007';redis.raw.set(id,{type:'string',value:'legacy',expiresAt:null});
+  const original=fs.readFileSync;let reads=0;try{fs.readFileSync=(target,...args)=>{if(target===cacheFile(root)&&++reads===2)throw Object.assign(new Error('simulated verification failure'),{code:'EIO'});return original(target,...args);};await rejects(redis.get(id),'STORAGE_FAILED');}finally{fs.readFileSync=original;}
+  assert.equal(redis.raw.get(id).value,'legacy');assert.match(read(root,key).entries[id].migration,/^[a-f0-9]{64}$/);assert.equal(await redis.get(id),'legacy');assert.equal(redis.raw.has(id),false);assert.equal(read(root,key).entries[id].migration,undefined);
+});
+test('Redis without exact expiry support keeps expiring legacy records but can migrate persistent ones',async t=>{
+  const{redis}=install(t,{expiryAtomic:false});const id='miao:rank:uid-info:100000007';redis.raw.set(id,{type:'string',value:'legacy',expiresAt:Date.now()+10000});await rejects(redis.get(id),'MIGRATION_ATOMIC_REQUIRED');assert.equal(redis.raw.has(id),true);
+  redis.raw.get(id).expiresAt=null;assert.equal(await redis.get(id),'legacy');assert.equal(redis.raw.has(id),false);
 });

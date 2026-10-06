@@ -19,10 +19,13 @@
 | 提供者 | 当前源码使用的端点与用途 |
 | --- | --- |
 | 米哈游 / 米游社 | `api-takumi.mihoyo.com/binding/api/getUserGameRolesByCookie`，`game_biz=hk4e_cn`；绑定前验证角色归属 |
-| 米游社通行证 | `passport-api.miyoushe.com/account/ma-cn-passport/web/{createQRLogin,queryQRLoginStatus}`；原创国服扫码创建/轮询，票据只保留内存；真实端点已验证创建与 pending 查询，本人确认后还须验证原神角色归属并加密保存，完整授权链路未验收 |
-| 米哈游 / 米游社 | `api-takumi-record.mihoyo.com/game_record/app/genshin/api/` 下的 index、dailyNote、spiralAbyss、role_combat、hard_challenge、character/list、character/detail、act_calendar、gcg/basicInfo、gcg/deckList、gcg/cardList 等；本人游戏记录、角色与七圣牌组/卡牌 |
+| 米游社通行证 | `passport-api.miyoushe.com/account/ma-cn-passport/web/{createQRLogin,queryQRLoginStatus}`；原创国服扫码创建/轮询，票据只保留内存；真实创建/pending/本人确认及角色归属验证已成功，AES 保存一个国服账户，不代表所有账号或渠道通过 |
+| 米哈游 / 米游社 | `api-takumi-record.mihoyo.com/game_record/app/genshin/api/` 下的 index、dailyNote、spiralAbyss、role_combat、hard_challenge、character/list、character/detail、act_calendar、gcg/basicInfo、gcg/deckList、gcg/cardList 等；本人 role_combat/hard_challenge/deckList 已验证成功，index/dailyNote/spiralAbyss 在设备指纹部署后从 5003 变为 1034，已有本人私聊人工验证入口，最终回执/查询待本人，其他分支需逐项验收 |
+| 米哈游官方设备指纹服务与账号 SDK | 运行时调用 [设备指纹 getFp](https://public-data-api.mihoyo.com/device-fp/api/getFp)，字段/bootstrap 参考 [官方账号 Web SDK](https://webstatic.mihoyo.com/dora/biz/mihoyo-account-sdk/main.js) 和实取的 [Web 字段列表 getExtList](https://public-data-api.mihoyo.com/device-fp/api/getExtList?platform=4&app_name=bbs_cn)。getFp 不带账户凭据，只有服务真实签发的有效值用于 x-rpc-device_fp。官方真实签发与部署已验证，不代表可绕过 1034 安全验证 |
+| 米游社本人人工验证 | `https://bbs-api.miyoushe.com/misc/wapi/createVerification` 与 `verifyVerfication`（官方路径拼写）；协议核对 xhh-TL utils/mysVerify.js，未引入其 solver。官方 create 实测返回 v3 gt32hex/challenge32hex；new_captcha 数字 1 在客户端转成布尔。最终本人回执与查询放行尚待验收 |
+| 极验 / GeeTest 官方 SDK | HTML 仅显式加载 [HTTPS gt.js](https://static.geetest.com/static/tools/gt.js)，初始化/onSuccess/getValidate 三字段流程依据 [官方 HTTPS 客户端文档](https://docs.geetest.com/2.0/sections/idx-client-sdk.html)、[v3 Web API](https://docs.geetest.com/captcha/apirefer/api/web) 与 [资源域名说明](https://docs.geetest.com/captcha/deploy/client/web/)。由本人手动操作后复制回执，不使用第三方 solver 或自动解题；HTML 不含账户凭据 |
 | 米哈游 | `api-takumi.mihoyo.com/event/e20200928calculate/` 下的 v1/sync/avatar/detail、v1/avatarSkill/list、v2/compute、v1/furniture/blueprint、v1/furniture/compute；养成、尘歌壶模数与家具材料计算，不是队伍伤害模拟 |
-| 米哈游原石札记 | 国服 `hk4e-api.mihoyo.com/event/ys_ledger/monthInfo`，国际服 `sg-hk4e-api.hoyolab.com/event/ysledgeros/month_info`；固定本人 UID/服务器和月份，已写请求协议，实际账户响应未验收 |
+| 米哈游原石札记 | 国服 `hk4e-api.mihoyo.com/event/ys_ledger/monthInfo`，国际服 `sg-hk4e-api.hoyolab.com/event/ysledgeros/month_info`；固定本人 UID/服务器和月份，国服本人 API 已成功，国际服仍待账户响应验收 |
 | 米哈游 | `api-takumi.mihoyo.com/event/luna/hk4e/{info,sign}`，act_id=`e202311201442471`；当前独立核心国服签到路由，尚需真实账户验收 |
 | HoYoLAB | `api-os-takumi.mihoyo.com`、`sg-public-api.hoyolab.com/event/game_record/genshin/api/`、其 event/e20200928calculate/、`sg-hk4e-api.hoyolab.com/event/sol/`；国际服按 UID 分流，含家具和七圣路由，凭证不跨区域域名，实际国际服账户响应未验收 |
 | 米哈游 HoYoPlay | `hyp-api.mihoyo.com/hyp/hyp-connect/api/getGameBranches`，launcher_id=`jGHBHlcOq1`、game_id=`1Z8W5NHUQb`；国服原神 PC 正式/预下载标签，无凭证当次探测取得 retcode=0 |
