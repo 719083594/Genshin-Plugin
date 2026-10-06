@@ -14,7 +14,7 @@ function fixture(t){
   t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
   return {root,assets,bootstrap:path.join(assets,'bootstrap.html')};
 }
-function fakeBrowser({box={width:1080,height:1200},requests=[],setContentError=null,contextDelay=null,screenshotDelay=null,closeFailure=false,closeDelay=null,bytes=Buffer.from([255,216,255,217])}={}){
+function fakeBrowser({box={width:1080,height:1200},requests=[],setContentError=null,contextDelay=null,screenshotDelay=null,closeFailure=false,closeDelay=null,brokenImages=false,bytes=Buffer.from([255,216,255,217])}={}){
   const calls=[],handlers={},frame={};let closed=0;
   const dispatch=(url,navigation=false)=>handlers.request({url:()=>url,isNavigationRequest:()=>navigation,resourceType:()=> 'image',frame:()=>frame,continue:async()=>calls.push(['allow',url]),abort:async()=>calls.push(['block',url])});
   const page={
@@ -22,7 +22,7 @@ function fakeBrowser({box={width:1080,height:1200},requests=[],setContentError=n
     setViewport:async value=>calls.push(['viewport',value]),
     goto:async(url,options)=>{calls.push(['goto',url,options]);dispatch(url,true);await flush()},
     setContent:async(html,options)=>{calls.push(['content',html,options]);for(const request of requests)typeof request==='string'?dispatch(request):dispatch(request.url,request.navigation);await flush();if(setContentError)throw setContentError},
-    evaluate:async()=>calls.push(['ready']),
+    evaluate:async()=>{calls.push(['ready']);return brokenImages},
     $:async selector=>selector==='#card'?{boundingBox:async()=>({x:0,y:0,...box}),screenshot:async options=>{calls.push(['screenshot',options]);if(screenshotDelay)await screenshotDelay;return bytes}}:null
   };
   const context={newPage:async()=>{calls.push(['newPage']);return page},close:async()=>{closed++;calls.push(['close']);if(closeDelay)await closeDelay;if(closeFailure)throw Error('COOKIE=synthetic-secret context-close failure')}};
@@ -63,6 +63,10 @@ test('inline images enforce per-image bytes, total bytes, strict base64 and occu
   const medium=dataUrl(png(1,1,240000));await assert.rejects(render({html:inlineCard(Array(9).fill(medium))}),error=>error.code==='DATA_IMAGE_LIMIT');
   const small=dataUrl(png());await assert.rejects(render({html:inlineCard(Array(65).fill(small))}),error=>error.code==='DATA_IMAGE_LIMIT');
   for(const bad of [small+'=',small.replace(/.$/,'%3D'),small.replace('base64,','base64,\n')])await assert.rejects(render({html:inlineCard([bad])}),error=>error.code==='INVALID_DATA_IMAGE');assert.equal(b.calls.length,0);
+});
+
+test('a browser decoder failure suppresses a partial image and closes the isolated context',async t=>{
+  const f=fixture(t),b=fakeBrowser({brokenImages:true});await assert.rejects(renderer(f,b)({html:inlineCard([dataUrl(png())])}),error=>error.code==='INVALID_DATA_IMAGE');assert.equal(b.closed,1);assert.equal(b.calls.some(call=>call[0]==='screenshot'),false);
 });
 
 test('private and public cards both use isolated memory-only contexts with JS/cache disabled and no screenshot path',async t=>{
