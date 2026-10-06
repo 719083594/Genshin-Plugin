@@ -1,0 +1,3 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {buildHelpCard} from '../lib/card-views.mjs';
+test('help card contains actual command groups without account lookup or retired actions',()=>{const r=buildHelpCard();assert.equal(r.width,1080);assert.equal(r.private,false);for(const text of ['提瓦特助手','旅行手记','米游币','祈愿导入','安全验证','版本数据','需配置'])assert.ok(r.html.includes(text));assert.doesNotMatch(r.html,/#原神(?:自动签到|签到|点赞|分享|兑换)/);assert.doesNotMatch(r.html,/<script|https?:\/\//);});
+test('configured prefix is escaped and public assets remain local',()=>{const html=buildHelpCard({prefix:'<script>"&'}).html;assert.ok(html.includes('&lt;script&gt;&quot;&amp;'));assert.doesNotMatch(html,/<script>/);assert.ok(html.includes('file:///'));});

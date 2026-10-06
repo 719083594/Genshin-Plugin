@@ -38,6 +38,8 @@
 
 独立资料由固定 miao 快照提取：127 角色、257 武器、63 圣遗物套装、263 材料，保留 [MIT 通知](../resources/MIAO-LICENSE.txt)。数量描述文件快照，不保证游戏后续更新自动同步。
 
+帮助菜单还使用同一固定 [miao-plugin](https://github.com/yoimiya-kokomi/miao-plugin/tree/b01d77483268eb2236876ad0995fab27052c09ad/resources) 的 `resources/help/icon.png`（本地 `resources/ui/icons.png`）与 `resources/common/theme/main-01.png`（本地 `resources/ui/ayaka.png`）公开素材；保留上述 MIT 通知。菜单分组、排版及内存渲染代码原创，素材和原神角色形象权利由原作者及对应游戏权利人保留，不由本项目 GPL 重新授权。
+
 ## 可选原模块 API 与素材源
 
 只有启用模块并实际执行相关命令时才会连接下列来源，未启用不能写为已接通。

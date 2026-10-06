@@ -8,6 +8,9 @@ import {installNativeFileCache} from './lib/native-file-cache.mjs';
 import {installNativeRedis} from './lib/native-redis.mjs';
 import {installNativeXhhGuard} from './lib/native-xhh.mjs';
 import {installNativeGacha,configureNativeGacha,createNativeGachaRenderer,createMiaoGachaMetadata} from './lib/native-gacha.mjs';
+import {createCardRenderer} from './lib/card-renderer.mjs';
+import {buildHelpCard} from './lib/card-views.mjs';
+import {sendCardReply} from './lib/card-reply.mjs';
 const root=fileURLToPath(new URL('.',import.meta.url));let apps={};export let nativeStatus={};
 let enabled=false;try{enabled=JSON.parse(fs.readFileSync(path.join(root,'config/local.json'),'utf8')).adapter==='yunzai'}catch{}
 if(enabled){
@@ -25,6 +28,7 @@ if(enabled){
   const GachaData=(await import('../miao-plugin/apps/gacha/GachaData.js')).default;
   installNativeGacha({Data,...createMiaoGachaMetadata({Character,Weapon,GachaData})});
   const hostRenderer=(await import('../../lib/puppeteer/puppeteer.js')).default;
+  const renderCard=createCardRenderer({botRoot:storageOptions.botRoot,getBrowser:()=>hostRenderer.browser,ensureBrowser:()=>hostRenderer.browserInit(),assetRoots:[path.join(root,'resources/ui')],bootstrapFile:path.join(root,'resources/ui/shell.html')});
   configureNativeGacha({renderPrivate:createNativeGachaRenderer({botRoot:storageOptions.botRoot,getBrowser:()=>hostRenderer.browser}),image:buffer=>globalThis.segment.image(buffer)});
   const LiteMysApi=(await import('../xhh-TL/utils/mysClient.js')).default;installNativeXhhGuard({LiteMysApi});
   configureNativeAccounts({accounts:engine.accounts,gacha:engine.gacha,query:(api,account,params)=>engine.mys.query(api,account,params),allowGroupCookie:false});
@@ -34,7 +38,7 @@ if(enabled){
   class TeyvatCommands extends Base{
     constructor(){const p=engine.config.read().prefix.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');super({name:'提瓦特助手',dsc:'原神独立核心',event:'message',priority:-8000,rule:[{reg:new RegExp('^'+p),fnc:'run',title:'原神专用助手',description:'#原神帮助：账户、便笺、挑战、展柜、资料、祈愿、版本与订阅'}]})}
     init(){engine.subscriptions.start()}
-    async run(e){const result=await engine.handle({...e,text:e.msg,owner:String(e.user_id),privateChat:!e.group_id});if(result.image){await e.reply([result.text,globalThis.segment?.image?.(result.image)||result.image]);if(result.qrSession)void engine.login.wait(String(e.user_id),result.qrSession,{privateChat:true}).then(async r=>{if(r.status==='Confirmed')await e.reply('米游社扫码及本人国服角色验证成功，账号凭据已AES加密保存：'+r.accounts.map(a=>a.uid).join('、')+'。');else if(!r.ok)await e.reply(r.message)}).catch(()=>{})}else if(result.file){if(!e.friend?.sendFile)await e.reply('协议端不支持私聊文件发送；请使用本地CLI export。');else {if(result.text)await e.reply(result.text);const upload=privateFileUpload(result.file.data,result.file.name);await e.friend.sendFile(upload.buffer,upload.name)}}else if(result.handled)await e.reply(result.text);return result.handled}
+    async run(e){const result=await engine.handle({...e,text:e.msg,owner:String(e.user_id),privateChat:!e.group_id,imageReply:true});if(result.card){try{await sendCardReply(result,{event:e,render:renderCard,image:bytes=>globalThis.segment.image(bytes),buildCards:()=>[buildHelpCard({prefix:engine.config.read().prefix})]});return true}catch{await e.reply('图片暂未生成，先显示文字；也可发送 #原神帮助 文字。')}}if(result.image){await e.reply([result.text,globalThis.segment?.image?.(result.image)||result.image]);if(result.qrSession)void engine.login.wait(String(e.user_id),result.qrSession,{privateChat:true}).then(async r=>{if(r.status==='Confirmed')await e.reply('米游社扫码及本人国服角色验证成功，账号凭据已AES加密保存：'+r.accounts.map(a=>a.uid).join('、')+'。');else if(!r.ok)await e.reply(r.message)}).catch(()=>{})}else if(result.file){if(!e.friend?.sendFile)await e.reply('协议端不支持私聊文件发送；请使用本地CLI export。');else {if(result.text)await e.reply(result.text);const upload=privateFileUpload(result.file.data,result.file.name);await e.friend.sendFile(upload.buffer,upload.name)}}else if(result.handled)await e.reply(result.text);return result.handled}
   }
   const native=await loadNativeProviders({root,config:engine.config.read()});nativeStatus=native.status;engine.nativeStatus=native.status;apps={TeyvatCommands,...native.apps};globalThis.logger?.info?.('[Teyvat] 原神模块 '+Object.keys(native.apps).length+' 个');
 }
