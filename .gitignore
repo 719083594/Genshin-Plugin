@@ -1,0 +1,10 @@
+node_modules/
+data/
+config/local.json
+config/integration.json
+.env
+.env.*
+*.log
+*.zip
+*.bundle
+coverage/

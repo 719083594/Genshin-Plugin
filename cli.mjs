@@ -1,0 +1,9 @@
+import fs from 'node:fs';import path from 'node:path';import {fileURLToPath} from 'node:url';import {Teyvat} from './api.mjs';
+const args=process.argv.slice(2);const cmd=args.shift()||'help';const root=fileURLToPath(new URL('.',import.meta.url));const engine=new Teyvat(root);
+if(cmd==='init')console.log('实例配置与随机凭据加密密钥已就绪（密钥不会显示）。');
+else if(cmd==='diagnose')console.log(JSON.stringify({version:'0.1.0',adapter:engine.config.read().adapter,region:engine.config.read().region,encryptedCredentials:true,personalApiVerified:false},null,2));
+else if(cmd==='login'){const owner=args.shift();const r=await engine.login.start(owner,{privateChat:true,...(args[0]?{uid:args[0]}:{})});if(!r.ok)console.log(r.message);else{const QR=(await import('qrcode')).default;console.log(await QR.toString(r.qrUrl,{type:'terminal',small:true}));try{const result=await engine.login.wait(owner,r.sessionId,{privateChat:true});console.log(result.status==='Confirmed'?'本人国服账号已验证并AES加密保存。':result.message||result.status)}finally{engine.login.cancel(owner,r.sessionId,{privateChat:true});engine.login.stop()}}}
+else if(cmd==='command'){const owner=args.shift();const result=await engine.handle({owner,privateChat:true,text:args.join(' ')});if(result.text)console.log(result.text);if(result.file)console.log(result.file.data);if(result.image){console.log('请在 bot 私聊扫码，或使用 CLI login USER [UID] 直接显示终端二维码。');if(result.qrSession)engine.login.cancel(owner,result.qrSession,{privateChat:true})}engine.login.stop();}
+else if(cmd==='import'){const [owner,id,file]=args;console.log(JSON.stringify(engine.gacha.import(owner,id,fs.readFileSync(path.resolve(file),'utf8'))));}
+else if(cmd==='export'){const [owner,id,file]=args;fs.writeFileSync(path.resolve(file),JSON.stringify(engine.gacha.export(owner,id),null,2),{mode:0o600,flag:'wx'});console.log('已导出到指定文件。');}
+else console.log('用法：node cli.mjs init | diagnose | login USER [UID] | command USER "#原神帮助" | import USER UID FILE | export USER UID FILE');

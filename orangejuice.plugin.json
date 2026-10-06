@@ -1,0 +1,234 @@
+{
+  "schemaVersion": 1,
+  "title": "提瓦特助手",
+  "description": "提瓦特助手：原神独立核心与TRSS适配",
+  "version": "0.1.0",
+  "commands": [
+    "#原神帮助",
+    "#原神绑定 UID",
+    "#原神账户",
+    "#原神切换 UID",
+    "#原神扫码登录",
+    "#原神扫码状态",
+    "#原神取消扫码",
+    "#原神登录说明",
+    "#原神展柜 UID",
+    "#原神便笺",
+    "#原神深渊",
+    "#原神剧诗",
+    "#原神角色 名称",
+    "#原神武器 名称",
+    "#原神圣遗物 名称",
+    "#原神版本",
+    "#原神安装包",
+    "#原神预下载包",
+    "#原神原石札记",
+    "#原神尘歌壶方案 模数",
+    "#原神家具计算 JSON",
+    "#原神七圣牌组",
+    "#原神七圣卡牌",
+    "#原神祈愿分析",
+    "#原神状态"
+  ],
+  "commandTable": [
+    {
+      "title": "提瓦特助手",
+      "command": "#原神帮助",
+      "description": "真实可用范围及未接通功能见帮助；账户操作仅操作本人，授权仅私聊。",
+      "permission": "all",
+      "category": "游戏助手"
+    }
+  ],
+  "configs": [
+    {
+      "id": "teyvat-plugin",
+      "title": "提瓦特助手实例参数",
+      "file": "config/local.json",
+      "ownerOnly": true,
+      "defaults": {
+        "enabled": true,
+        "adapter": "none",
+        "prefix": "#原神",
+        "timeoutMs": 12000,
+        "cacheSeconds": 300,
+        "maxReplyChars": 3500,
+        "region": "cn",
+        "credentialsKey": "",
+        "masters": [],
+        "allowCookieInPrivate": true,
+        "notifications": {
+          "enabled": false,
+          "resinThreshold": 180,
+          "intervalMinutes": 15
+        },
+        "autoSign": {
+          "enabled": false,
+          "time": "08:10",
+          "timezone": "Asia/Shanghai"
+        },
+        "providers": {
+          "enka": true,
+          "miao": false,
+          "genshin": false,
+          "xhh": false,
+          "fanSky": false,
+          "moan": false
+        },
+        "moan": {
+          "baseUrl": "",
+          "key": "",
+          "mode": "personal",
+          "allowCloudUpload": false
+        }
+      },
+      "secretFields": [
+        "credentialsKey",
+        "moan.key"
+      ],
+      "fields": [
+        {
+          "path": "enabled",
+          "label": "启用插件",
+          "type": "boolean"
+        },
+        {
+          "path": "adapter",
+          "label": "机器人适配器（需重启）",
+          "type": "string",
+          "enum": [
+            "none",
+            "yunzai"
+          ]
+        },
+        {
+          "path": "prefix",
+          "label": "命令前缀",
+          "type": "string"
+        },
+        {
+          "path": "timeoutMs",
+          "label": "接口最长等待毫秒",
+          "type": "integer"
+        },
+        {
+          "path": "cacheSeconds",
+          "label": "公开数据缓存秒数",
+          "type": "integer"
+        },
+        {
+          "path": "maxReplyChars",
+          "label": "回复最大字符数",
+          "type": "integer"
+        },
+        {
+          "path": "region",
+          "label": "默认区域",
+          "type": "string"
+        },
+        {
+          "path": "credentialsKey",
+          "label": "账户加密密钥（修改会使已有凭据无法解密）",
+          "type": "string",
+          "secret": true,
+          "description": "仅主人可见与修改，留在实例文件中，不提交GitHub。不要改动正在使用的密钥。",
+          "readonly": true
+        },
+        {
+          "path": "masters",
+          "label": "主人ID列表",
+          "type": "array"
+        },
+        {
+          "path": "allowCookieInPrivate",
+          "label": "允许私聊授权Cookie",
+          "type": "boolean"
+        },
+        {
+          "path": "notifications.enabled",
+          "label": "允许用户订阅树脂提醒",
+          "type": "boolean"
+        },
+        {
+          "path": "notifications.resinThreshold",
+          "label": "默认树脂提醒阈值",
+          "type": "integer"
+        },
+        {
+          "path": "notifications.intervalMinutes",
+          "label": "巡检间隔分钟",
+          "type": "integer"
+        },
+        {
+          "path": "autoSign.enabled",
+          "label": "允许用户订阅自动签到",
+          "type": "boolean"
+        },
+        {
+          "path": "autoSign.time",
+          "label": "每天签到时间（HH:mm）",
+          "type": "string"
+        },
+        {
+          "path": "autoSign.timezone",
+          "label": "签到时区",
+          "type": "string"
+        },
+        {
+          "path": "providers.enka",
+          "label": "Enka公开展柜",
+          "type": "boolean"
+        },
+        {
+          "path": "providers.miao",
+          "label": "喵喵深度面板模块",
+          "type": "boolean"
+        },
+        {
+          "path": "providers.genshin",
+          "label": "原神运行时模块",
+          "type": "boolean"
+        },
+        {
+          "path": "providers.xhh",
+          "label": "小火花原神模块",
+          "type": "boolean"
+        },
+        {
+          "path": "providers.fanSky",
+          "label": "FanSky原神模块",
+          "type": "boolean"
+        },
+        {
+          "path": "providers.moan",
+          "label": "启用墨安HTTPS客户端（需可用服务）",
+          "type": "boolean"
+        },
+        {
+          "path": "moan.baseUrl",
+          "label": "墨安HTTPS API根地址（当前需提供）",
+          "type": "string"
+        },
+        {
+          "path": "moan.key",
+          "label": "主人配置的共享API Key",
+          "type": "string",
+          "secret": true
+        },
+        {
+          "path": "moan.mode",
+          "label": "API Key模式",
+          "type": "string",
+          "enum": [
+            "personal",
+            "shared"
+          ]
+        },
+        {
+          "path": "moan.allowCloudUpload",
+          "label": "允许用户主动上传或云链接导入",
+          "type": "boolean"
+        }
+      ]
+    }
+  ]
+}
