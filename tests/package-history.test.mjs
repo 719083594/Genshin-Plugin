@@ -112,7 +112,11 @@ test('directory replaced during network wait receives no temporary writes or cle
   const {root,history}=fixture(t);const body=fs.readFileSync(databaseFile(root));
   const external=path.join(root,'external');fs.mkdirSync(external);
   history.fetch=async()=>{fs.renameSync(path.join(root,'data'),path.join(root,'original-data'));fs.symlinkSync(external,path.join(root,'data'),process.platform==='win32'?'junction':'dir');return new Response(body)};
-  await assert.rejects(history.update(),/路径不安全/);
+  const originalWrite=fs.writeFileSync,originalDelete=fs.unlinkSync;let writes=0,deletes=0;
+  fs.writeFileSync=function(...args){writes++;return originalWrite.apply(this,args)};
+  fs.unlinkSync=function(...args){deletes++;return originalDelete.apply(this,args)};
+  try{await assert.rejects(history.update(),/路径不安全/)}finally{fs.writeFileSync=originalWrite;fs.unlinkSync=originalDelete}
+  assert.equal(writes,0);assert.equal(deletes,0);
   assert.deepEqual(fs.readdirSync(external),[]);
   assert.deepEqual(fs.readdirSync(path.join(root,'original-data')),[]);
 });
