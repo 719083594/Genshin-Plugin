@@ -157,6 +157,26 @@ test('failed or hanging context close suppresses output and permanently blocks m
   }
 });
 
+test('a close that exceeds its budget suppresses that image but its genuine late success releases only its shared-module blocker',async t=>{
+  const peer=await import('../lib/card-renderer.mjs?second-plugin-copy'),f=fixture(t);let confirmClose;const closeDelay=new Promise(resolve=>{confirmClose=resolve}),firstBrowser=fakeBrowser({closeDelay});
+  const first=renderer(f,firstBrowser,{cleanupMs:10});await assert.rejects(first({html:card}),error=>error.code==='CLEANUP_PENDING');assert.equal(firstBrowser.closed,1);
+  const secondBrowser=fakeBrowser({closeFailure:true}),second=peer.createCardRenderer({botRoot:f.root,getBrowser:()=>secondBrowser.browser,cleanupMs:10});
+  await assert.rejects(second({html:card}),error=>error.code==='CLEANUP_PENDING');assert.equal(secondBrowser.calls.length,0);
+  confirmClose();await flush();
+  // Once the first close really succeeds, the peer can create its own context.
+  // That peer's failed close is a new blocker which the first cannot release.
+  await assert.rejects(second({html:card}),error=>error.code==='CLEANUP_PENDING');assert.equal(secondBrowser.closed,1);
+  confirmClose();await flush();await assert.rejects(first({html:card}),error=>error.code==='CLEANUP_PENDING');assert.equal(firstBrowser.calls.filter(call=>call[0]==='context').length,1);
+});
+
+test('a late-created context stays blocked across module copies until its delayed real close is confirmed',async t=>{
+  const peer=await import('../lib/card-renderer.mjs?second-plugin-copy'),f=fixture(t);let create,close;const contextDelay=new Promise(resolve=>{create=resolve}),closeDelay=new Promise(resolve=>{close=resolve}),b=fakeBrowser({contextDelay,closeDelay});
+  const first=renderer(f,b,{timeoutMs:100,cleanupMs:10}),second=peer.createCardRenderer({botRoot:f.root,getBrowser:()=>b.browser,cleanupMs:10});
+  await assert.rejects(first({html:card}),error=>error.code==='RENDER_TIMEOUT');create();await flush();assert.equal(b.closed,1);assert.equal(b.calls.some(call=>call[0]==='newPage'),false);
+  await assert.rejects(second({html:card}),error=>error.code==='CLEANUP_PENDING');close();await flush();assert.ok(Buffer.isBuffer(await second({html:card})));assert.equal(b.closed,2);
+  assert.doesNotThrow(()=>peer.createCardRenderer({botRoot:f.root,getBrowser:()=>b.browser,cleanupMs:10000}));assert.throws(()=>peer.createCardRenderer({botRoot:f.root,getBrowser:()=>b.browser,cleanupMs:10001}),/limits/);
+});
+
 test('upstream render errors never echo private HTML, paths or credentials',async t=>{
   const f=fixture(t),b=fakeBrowser({setContentError:Error('COOKIE=synthetic-secret /private/account.json')});
   await assert.rejects(renderer(f,b)({html:card}),error=>error.code==='RENDER_FAILED'&&!/synthetic|private|COOKIE/.test(error.message));assert.equal(b.closed,1);
