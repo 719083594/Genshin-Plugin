@@ -6,7 +6,7 @@
     "genshin-login": [
       {
         "file": "resources/help/genshin-login-1.jpg",
-        "sha256": "8d84cf19d7c298f229613a46c62e6ee74b4430730b2987a0ae3fe0c76effc989",
+        "sha256": "590669f1ac3ceb9fd440e09821e96af1987faeac912b3e1515aff584ee60f355",
         "width": 1080,
         "height": 931
       }
@@ -23,7 +23,7 @@
   "sources": [
     {
       "file": "lib/help-content.mjs",
-      "sha256": "f28cea6d4dba4aa886c20ec78cf83e46d6b32cb080b3236bcd2de143ddb72748"
+      "sha256": "abacb6e5a33b02aedaff7669bd5f5d96f8ae7951bc144426c6bb321cdd12cc4e"
     }
   ]
 }
