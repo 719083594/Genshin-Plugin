@@ -3,8 +3,23 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {isGenshinEvent,wrapProviderClass,loadNativeProviders} from '../lib/native-providers.mjs';
+import {isGenshinEvent,wrapProviderClass,loadNativeProviders,providerSnapshots} from '../lib/native-providers.mjs';
 import {planProviderSettings,applyProviderSettings} from '../scripts/provider-settings.mjs';
+
+test('management components declare every native provider directory exactly once',()=>{
+  const manifest=JSON.parse(fs.readFileSync(new URL('../orangejuice.plugin.json',import.meta.url),'utf8'));
+  assert.ok(Array.isArray(manifest.components));
+  const directories=manifest.components.map(component=>component.directory);
+  assert.equal(new Set(directories).size,directories.length);
+  assert.deepEqual([...directories].sort(),Object.values(providerSnapshots).map(provider=>provider.directory).sort());
+  for(const component of manifest.components){
+    assert.deepEqual(Object.keys(component).sort(),['description','directory','title']);
+    assert.match(component.directory,/^[A-Za-z0-9_-]+$/);
+    assert.equal(typeof component.title,'string');
+    assert.ok(component.title.trim());
+    assert.match(component.description,/原神助手统一加载/);
+  }
+});
 
 test('native providers reject all non-Genshin game markers and raw prefixes',()=>{
   for(const msg of ['*面板','%面板','#*面板','#%面板','#星铁面板','#绝区零体力','#鸣潮体力','#开启星铁体力推送','#zzz体力','/sr 面板'])assert.equal(isGenshinEvent({msg}),false,msg);

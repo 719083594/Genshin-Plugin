@@ -3,6 +3,28 @@
   "title": "原神助手",
   "description": "原神助手：原神独立核心与TRSS适配",
   "version": "0.1.0",
+  "components": [
+    {
+      "directory": "genshin",
+      "title": "原神基础模块",
+      "description": "原神基础资料与记录模块，经原神助手统一加载，非废弃插件；保留原目录及资源。"
+    },
+    {
+      "directory": "miao-plugin",
+      "title": "喵喵面板",
+      "description": "角色面板、资料与伤害计算模块，经原神助手统一加载，非废弃插件；保留原目录及资源。"
+    },
+    {
+      "directory": "xhh-TL",
+      "title": "小火花功能",
+      "description": "体力卡、挑战与队伍计算模块，经原神助手统一加载，非废弃插件；保留原目录及资源。"
+    },
+    {
+      "directory": "FanSky_Qs",
+      "title": "枫叶计算",
+      "description": "小助手队伍计算及统计模块，经原神助手统一加载，非废弃插件；保留原目录及资源。"
+    }
+  ],
   "commands": [
     "#原神帮助",
     "#原神绑定 UID",

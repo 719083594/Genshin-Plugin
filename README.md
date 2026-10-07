@@ -44,6 +44,8 @@ node cli.mjs export YOUR_QQ UID OUTPUT.json
 
 放入宿主 `plugins/Genshin-Plugin`，把实例 `config/local.json` 的 `adapter` 设置为 `yunzai`。外部源保持原目录名与原许可，原根入口改为独立空 apps 导出，选择器直接导入已审计模块，避免重复注册与原入口自动初始化。依赖、设置脚本、首次完整重启与真实命令验收见 [组合安装说明](docs/NATIVE-PROVIDERS.md)。
 
+`genshin`（原神基础模块）、`miao-plugin`（喵喵面板）、`xhh-TL`（小火花功能）和 `FanSky_Qs`（枫叶计算）是由原神助手统一加载的依赖模块，非废弃插件。它们的原根入口没有独立注册功能，实际功能归入原神助手；不能因面板显示 0 个独立入口就删除源码或资源。公开的 `orangejuice.plugin.json` 使用 `components` 声明这些关系，供管理面板将依赖收纳到原神助手下。
+
 `providers.miao/genshin/xhh/fanSky` 默认关闭，只有安装并核对加载结果后才启用。选择器返回 `loaded/partial/error/missing/disabled`；开关 true 不等于导入成功。喵喵使用 `#喵喵帮助`，小火花队伍计算使用 `#队伍伤害`，FanSky 对照入口使用 `#小助手队伍伤害`。原生 Cookie/UID 写库、公共 CK 和 authkey 缓存入口停用；组合从当前 QQ 的 AES 账户只在本次处理内取得临时读对象，不复制到原生 DB 或 Redis CK 池。
 
 包含面板/原生文件/Redis 缓存加密的最新源码已线上部署，32 个原生选择类与独立核心共 33 类加载成功，无构造失败；本轮六个容器健康检查通过，账户成功解密保留，两个插件帮助命令均获用户回复确认。真实 Redis Lua 合成旧数据迁移、凭据剥离、排名顺序和原始键删除均已通过，测试键已清理。原生图片已有 `#钟离天赋` 用户确认正常收到这一条，全部个人面板、伤害、群榜与自动推送仍需分别验收。
