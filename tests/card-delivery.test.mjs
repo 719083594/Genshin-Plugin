@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {Teyvat} from '../api.mjs';
-import {sendCardReply} from '../lib/card-reply.mjs';
+import {sendCardReply,CardReplyError} from '../lib/card-reply.mjs';
 
 async function workspace(fn){const root=fs.mkdtempSync(path.join(os.tmpdir(),'teyvat-card-flow-'));try{await fn(root)}finally{fs.rmSync(root,{recursive:true,force:true})}}
 
@@ -32,4 +32,14 @@ test('卡片按页以内存 Buffer 发送，private 标记由核心结果决定'
  let rendered=false;
  await assert.rejects(sendCardReply(result,{event:{},buildCards:()=>Array(9).fill({}),render:()=>{rendered=true}}),/INVALID_CARD_COUNT/);
  assert.equal(rendered,false);
+});
+
+
+test('后页失败明确保留已发送页数，第一页失败则保留原错误',async()=>{
+ const failure=new Error('synthetic-render-error'),output=[];
+ const options={event:{reply:async item=>output.push(item)},buildCards:()=>[{html:'one'},{html:'two'}],render:async card=>{if(card.html==='two')throw failure;return Buffer.from('synthetic-image')},image:bytes=>bytes};
+ await assert.rejects(sendCardReply({card:{private:true}},options),error=>error instanceof CardReplyError&&error.sent===1&&error.total===2&&error.cause===failure&&!error.message.includes('synthetic'));
+ assert.equal(output.length,1);
+ await assert.rejects(sendCardReply({card:{private:true}},{...options,render:async()=>{throw failure}}),error=>error===failure);
+ assert.equal(output.length,1);
 });

@@ -14,16 +14,17 @@ function fixture(t){
   t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
   return {root,assets,bootstrap:path.join(assets,'bootstrap.html')};
 }
-function fakeBrowser({box={width:1080,height:1200},requests=[],setContentError=null,contextDelay=null,screenshotDelay=null,closeFailure=false,closeDelay=null,brokenImages=false,bytes=Buffer.from([255,216,255,217])}={}){
+function fakeBrowser({box={width:1080,height:1200},requests=[],setContentError=null,contextDelay=null,setupDelay=null,contentDelay=null,screenshotDelay=null,closeFailure=false,closeDelay=null,brokenImages=false,bytes=Buffer.from([255,216,255,217])}={}){
   const calls=[],handlers={},frame={};let closed=0;
   const dispatch=(url,navigation=false)=>handlers.request({url:()=>url,isNavigationRequest:()=>navigation,resourceType:()=> 'image',frame:()=>frame,continue:async()=>calls.push(['allow',url]),abort:async()=>calls.push(['block',url])});
   const page={
     setJavaScriptEnabled:async value=>calls.push(['javascript',value]),setCacheEnabled:async value=>calls.push(['cache',value]),setRequestInterception:async value=>calls.push(['interception',value]),on:(event,fn)=>{handlers[event]=fn},mainFrame:()=>frame,
-    setViewport:async value=>calls.push(['viewport',value]),
+    setViewport:async value=>{calls.push(['viewport',value]);if(setupDelay)await setupDelay},
     goto:async(url,options)=>{calls.push(['goto',url,options]);dispatch(url,true);await flush()},
-    setContent:async(html,options)=>{calls.push(['content',html,options]);for(const request of requests)typeof request==='string'?dispatch(request):dispatch(request.url,request.navigation);await flush();if(setContentError)throw setContentError},
+    setContent:async(html,options)=>{calls.push(['content',html,options]);for(const request of requests)typeof request==='string'?dispatch(request):dispatch(request.url,request.navigation);await flush();if(contentDelay)await contentDelay;if(setContentError)throw setContentError},
     evaluate:async()=>{calls.push(['ready']);return brokenImages},
-    $:async selector=>selector==='#card'?{boundingBox:async()=>({x:0,y:0,...box}),screenshot:async options=>{calls.push(['screenshot',options]);if(screenshotDelay)await screenshotDelay;return bytes}}:null
+    $:async selector=>selector==='#card'?{boundingBox:async()=>{calls.push(['bounds']);return {x:0,y:0,...box}},screenshot:async()=>{calls.push(['elementScreenshot']);assert.fail('ElementHandle.screenshot must never run')}}:null,
+    screenshot:async options=>{calls.push(['screenshot',options]);if(screenshotDelay)await screenshotDelay;return bytes}
   };
   const context={newPage:async()=>{calls.push(['newPage']);return page},close:async()=>{closed++;calls.push(['close']);if(closeDelay)await closeDelay;if(closeFailure)throw Error('COOKIE=synthetic-secret context-close failure')}};
   const browser={createBrowserContext:async()=>{calls.push(['context']);if(contextDelay)await contextDelay;return context},isConnected:()=>true,close:()=>assert.fail('host browser must never close'),newPage:()=>assert.fail('host default context must never be used'),launch:()=>assert.fail('renderer must never launch a browser')};
@@ -78,6 +79,19 @@ test('private and public cards both use isolated memory-only contexts with JS/ca
   assert.ok(b.calls.filter(call=>call[0]==='content').every(call=>call[1].includes("script-src 'none'")&&call[1].includes("connect-src 'none'")&&call[1].includes('SYNTHETIC PRIVATE CARD')));
   assert.ok(b.calls.filter(call=>call[0]==='screenshot').every(call=>call[1].path===undefined&&call[1].type==='jpeg'));
   assert.equal(b.calls.some(call=>call[0]==='goto'),false);assert.deepEqual(fs.readdirSync(f.root,{recursive:true}).sort(),before);assert.equal(fs.readFileSync(f.bootstrap,'utf8'),source);
+});
+
+test('page screenshot uses only the validated box without element screenshot, extra scrolling, viewport changes or disk options',async t=>{
+  const f=fixture(t),box={x:12.25,y:20.5,width:900.5,height:1400.25},b=fakeBrowser({box});
+  assert.ok(Buffer.isBuffer(await renderer(f,b)({html:card})));
+  const screenshots=b.calls.filter(call=>call[0]==='screenshot');assert.equal(screenshots.length,1);
+  assert.deepEqual(screenshots[0][1],{type:'jpeg',quality:88,clip:box,captureBeyondViewport:true});
+  assert.equal(Object.hasOwn(screenshots[0][1],'path'),false);assert.equal(Object.hasOwn(screenshots[0][1],'fullPage'),false);
+  assert.equal(b.calls.some(call=>call[0]==='elementScreenshot'),false);assert.equal(b.calls.filter(call=>call[0]==='bounds').length,1);
+  assert.deepEqual(b.calls.filter(call=>call[0]==='viewport'),[['viewport',{width:1080,height:800,deviceScaleFactor:1}]]);
+  // The only evaluation is the existing font/image readiness check; scrolling
+  // and visibility observers would require another evaluation or element call.
+  assert.equal(b.calls.filter(call=>call[0]==='ready').length,1);assert.equal(b.closed,1);
 });
 
 test('local ordinary CSS/fonts are allowed only under explicit roots and public HTML bootstraps file origin without edits',async t=>{
@@ -180,4 +194,31 @@ test('a late-created context stays blocked across module copies until its delaye
 test('upstream render errors never echo private HTML, paths or credentials',async t=>{
   const f=fixture(t),b=fakeBrowser({setContentError:Error('COOKIE=synthetic-secret /private/account.json')});
   await assert.rejects(renderer(f,b)({html:card}),error=>error.code==='RENDER_FAILED'&&!/synthetic|private|COOKIE/.test(error.message));assert.equal(b.closed,1);
+});
+
+test('metrics report fixed numeric lifecycle phases once after cleanup, without inputs, and callback throws cannot replace success',async t=>{
+  const f=fixture(t);let release;const closeDelay=new Promise(resolve=>{release=resolve}),b=fakeBrowser({closeDelay}),reports=[];
+  const render=renderer(f,b,{cleanupMs:1000,onMetrics:metrics=>{reports.push(metrics);throw Error('synthetic logger failure')}}),pending=render({html:card});
+  for(let i=0;i<20&&!b.closed;i++)await flush();assert.equal(b.closed,1);assert.equal(reports.length,0);
+  release();assert.ok(Buffer.isBuffer(await pending));assert.equal(reports.length,1);
+  const metrics=reports[0];assert.deepEqual(Object.keys(metrics),['browser','context','setup','content','screenshot','cleanup','total','lastPhase']);assert.equal(metrics.lastPhase,'screenshot');assert.equal(Object.isFrozen(metrics),true);
+  for(const phase of ['browser','context','setup','content','screenshot','cleanup','total'])assert.ok(Number.isFinite(metrics[phase])&&metrics[phase]>=0);
+  const phases=metrics.browser+metrics.context+metrics.setup+metrics.content+metrics.screenshot+metrics.cleanup;assert.ok(Math.abs(metrics.total-phases)<1);
+  assert.doesNotMatch(JSON.stringify(metrics),/SYNTHETIC|PRIVATE|COOKIE|file:|https:|resources|html|width|bytes/);
+  assert.throws(()=>renderer(f,b,{onMetrics:1}),/configuration/);
+});
+
+test('timeout metrics retain the interrupted browser/context/setup/content/screenshot phase and late continuations never report again',async t=>{
+  for(const phase of ['browser','context','setup','content','screenshot']){
+    const f=fixture(t);let release,current=false;const delayed=new Promise(resolve=>{release=resolve}),options=phase==='browser'?{}:{[phase+'Delay']:delayed},b=fakeBrowser(options),reports=[];
+    const render=createCardRenderer({botRoot:f.root,getBrowser:()=>phase==='browser'?current:b.browser,ensureBrowser:phase==='browser'?()=>delayed:null,timeoutMs:100,cleanupMs:20,onMetrics:metrics=>{reports.push(metrics);return Promise.reject(Error('synthetic async logger failure'))}});
+    await assert.rejects(render({html:card}),error=>error.code==='RENDER_TIMEOUT');assert.equal(reports.length,1);const snapshot=JSON.stringify(reports[0]);assert.equal(reports[0].lastPhase,phase);assert.ok(reports[0][phase]>=70);assert.ok(reports[0].total>=reports[0][phase]);
+    if(phase==='browser')current=b.browser;release(b.browser);await flush();await flush();assert.equal(reports.length,1);assert.equal(JSON.stringify(reports[0]),snapshot);
+  }
+});
+
+test('cleanup failure still reports one sanitized snapshot and rejected admission produces no misleading lifecycle report',async t=>{
+  const f=fixture(t),b=fakeBrowser({closeFailure:true}),reports=[],render=renderer(f,b,{onMetrics:metrics=>reports.push(metrics)});
+  await assert.rejects(render({html:card}),error=>error.code==='CLEANUP_PENDING');assert.equal(reports.length,1);assert.equal(reports[0].lastPhase,'screenshot');assert.ok(reports[0].total>=reports[0].cleanup);
+  await assert.rejects(render({html:card}),error=>error.code==='CLEANUP_PENDING');assert.equal(reports.length,1);assert.doesNotMatch(JSON.stringify(reports),/secret|failure|COOKIE|PRIVATE/);
 });
