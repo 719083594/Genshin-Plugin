@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "hashAlgorithm": "sha256-lf-v1",
+  "prefix": "#原神",
+  "cards": {
+    "genshin-login": [
+      {
+        "file": "resources/help/genshin-login-1.jpg",
+        "sha256": "8d84cf19d7c298f229613a46c62e6ee74b4430730b2987a0ae3fe0c76effc989",
+        "width": 1080,
+        "height": 931
+      }
+    ],
+    "genshin-features": [
+      {
+        "file": "resources/help/genshin-features-1.jpg",
+        "sha256": "cda868daaa25605c95f259e01a55928c350dfbef52aab9bea0dbaaab87ddabdb",
+        "width": 1080,
+        "height": 1106
+      }
+    ]
+  },
+  "sources": [
+    {
+      "file": "lib/help-content.mjs",
+      "sha256": "f28cea6d4dba4aa886c20ec78cf83e46d6b32cb080b3236bcd2de143ddb72748"
+    }
+  ]
+}
