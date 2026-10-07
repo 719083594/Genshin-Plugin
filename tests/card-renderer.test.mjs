@@ -222,3 +222,52 @@ test('cleanup failure still reports one sanitized snapshot and rejected admissio
   await assert.rejects(render({html:card}),error=>error.code==='CLEANUP_PENDING');assert.equal(reports.length,1);assert.equal(reports[0].lastPhase,'screenshot');assert.ok(reports[0].total>=reports[0].cleanup);
   await assert.rejects(render({html:card}),error=>error.code==='CLEANUP_PENDING');assert.equal(reports.length,1);assert.doesNotMatch(JSON.stringify(reports),/secret|failure|COOKIE|PRIVATE/);
 });
+
+test('explicit ready delivery returns checked JPEG before close while drain and the shared active lock wait for genuine completion',async t=>{
+  const peer=await import('../lib/card-renderer.mjs?second-plugin-copy'),f=fixture(t);let close;const closeDelay=new Promise(resolve=>{close=resolve}),b=fakeBrowser({closeDelay}),reports=[];
+  const render=renderer(f,b,{deliverBeforeCleanup:true,cleanupMs:10,onMetrics:metrics=>reports.push(metrics)});
+  assert.equal(await render.drain(),true);assert.ok(Buffer.isBuffer(await render({html:card})));assert.equal(b.closed,1);assert.equal(reports.length,0);
+  const ownedDrain=render.drain();let drained=false;void ownedDrain.then(()=>{drained=true});await flush();assert.equal(drained,false);
+  const shared=globalThis[Symbol.for('teyvat-sanguosha.memory-card-renderer.v1')].get(process.platform==='win32'?f.root.toLowerCase():f.root);assert.equal(shared.active,true);
+  const other=fakeBrowser(),otherRender=peer.createCardRenderer({botRoot:f.root,getBrowser:()=>other.browser,deliverBeforeCleanup:true});
+  await assert.rejects(render({html:card}),error=>error.code==='CLEANUP_PENDING');await assert.rejects(otherRender({html:card}),error=>error.code==='CLEANUP_PENDING');assert.equal(other.calls.length,0);assert.equal(render.drain(),ownedDrain);
+  close();assert.equal(await ownedDrain,true);assert.equal(shared.active,false);assert.equal(reports.length,1);assert.equal(reports[0].lastPhase,'screenshot');
+  assert.ok(Buffer.isBuffer(await otherRender({html:card})));assert.equal(await otherRender.drain(),true);assert.equal(other.closed,1);
+});
+
+test('ready delivery never releases a hanging close and a real close rejection yields only fixed drain error and a persistent blocker',async t=>{
+  for(const options of [{closeDelay:new Promise(()=>{})},{closeFailure:true}]){
+    const f=fixture(t),b=fakeBrowser(options),reports=[],render=renderer(f,b,{deliverBeforeCleanup:true,cleanupMs:10,onMetrics:metrics=>reports.push(metrics)});
+    assert.ok(Buffer.isBuffer(await render({html:card})));assert.equal(b.closed,1);
+    if(options.closeFailure){await assert.rejects(render.drain(),error=>error instanceof CardRenderError&&error.code==='CLEANUP_PENDING'&&!/secret|COOKIE|failure/.test(error.message));assert.equal(reports.length,1)}
+    else{let settled=false;void render.drain().then(()=>{settled=true},()=>{settled=true});await new Promise(resolve=>setTimeout(resolve,25));assert.equal(settled,false);assert.equal(reports.length,0)}
+    await assert.rejects(render({html:card}),error=>error.code==='CLEANUP_PENDING');assert.equal(b.calls.filter(call=>call[0]==='context').length,1);
+  }
+});
+
+test('ready mode never delivers a late screenshot after timeout, and drain follows the real close past the strict cleanup budget',async t=>{
+  const f=fixture(t);let screenshot,close;const screenshotDelay=new Promise(resolve=>{screenshot=resolve}),closeDelay=new Promise(resolve=>{close=resolve}),b=fakeBrowser({screenshotDelay,closeDelay}),render=renderer(f,b,{deliverBeforeCleanup:true,timeoutMs:100,cleanupMs:10});
+  let delivered=false;await assert.rejects(render({html:card}).then(bytes=>{delivered=Buffer.isBuffer(bytes)}),error=>error.code==='CLEANUP_PENDING');const ownedDrain=render.drain();let drained=false;void ownedDrain.then(()=>{drained=true});
+  screenshot();await flush();assert.equal(delivered,false);assert.equal(drained,false);await assert.rejects(render({html:card}),error=>error.code==='CLEANUP_PENDING');close();assert.equal(await ownedDrain,true);assert.equal(delivered,false);
+  assert.ok(Buffer.isBuffer(await render({html:card})));assert.equal(await render.drain(),true);
+});
+
+test('drain includes a context still being created at timeout and remains pending until its late genuine close',async t=>{
+  const f=fixture(t);let create,close;const contextDelay=new Promise(resolve=>{create=resolve}),closeDelay=new Promise(resolve=>{close=resolve}),b=fakeBrowser({contextDelay,closeDelay}),render=renderer(f,b,{deliverBeforeCleanup:true,timeoutMs:100,cleanupMs:10});
+  await assert.rejects(render({html:card}),error=>error.code==='RENDER_TIMEOUT');const ownedDrain=render.drain();let drained=false;void ownedDrain.then(()=>{drained=true});await flush();assert.equal(drained,false);assert.equal(b.closed,0);
+  create();await flush();assert.equal(b.closed,1);assert.equal(b.calls.some(call=>call[0]==='newPage'),false);assert.equal(drained,false);close();assert.equal(await ownedDrain,true);
+});
+
+test('drain is successful without an owned context, but context creation and genuine close failures cannot become success',async t=>{
+  const f=fixture(t),withoutContext=createCardRenderer({botRoot:f.root,getBrowser:()=>false,deliverBeforeCleanup:true});await assert.rejects(withoutContext({html:card}),error=>error.code==='BROWSER_NOT_READY');assert.equal(await withoutContext.drain(),true);
+  const other=fixture(t),failedCreate=createCardRenderer({botRoot:other.root,getBrowser:()=>({createBrowserContext:async()=>{throw Error('COOKIE=synthetic-create-secret')},isConnected:()=>true}),deliverBeforeCleanup:true});
+  await assert.rejects(failedCreate({html:card}),error=>error.code==='RENDER_FAILED');await assert.rejects(failedCreate.drain(),error=>error.code==='CLEANUP_PENDING'&&!error.message.includes('synthetic'));await assert.rejects(failedCreate({html:card}),error=>error.code==='CLEANUP_PENDING');
+  assert.throws(()=>renderer(f,fakeBrowser(),{deliverBeforeCleanup:'yes'}),/configuration/);
+});
+
+test('ready mode still withholds bytes when image decoding, resource permission, geometry or final JPEG checks fail',async t=>{
+  for(const [options,code]of [[{brokenImages:true},'INVALID_DATA_IMAGE'],[{requests:['https://example.invalid/private.png']},'UNSAFE_ASSET'],[{box:{width:1081,height:1200}},'IMAGE_TOO_LARGE'],[{bytes:Buffer.from('synthetic non-JPEG')},'INVALID_IMAGE']]){
+    const f=fixture(t),b=fakeBrowser(options),render=renderer(f,b,{deliverBeforeCleanup:true});let delivered=false;
+    await assert.rejects(render({html:card}).then(bytes=>{delivered=Buffer.isBuffer(bytes)}),error=>error.code===code);assert.equal(delivered,false);assert.equal(b.closed,1);assert.equal(await render.drain(),true);
+  }
+});

@@ -32,7 +32,7 @@ if(enabled){
   const GachaData=(await import('../miao-plugin/apps/gacha/GachaData.js')).default;
   installNativeGacha({Data,...createMiaoGachaMetadata({Character,Weapon,GachaData})});
   const hostRenderer=resolveHostPuppeteer((await import('../../lib/renderer/loader.js')).default);
-  const renderCard=createQueuedCardRenderer(createCardRenderer({botRoot:storageOptions.botRoot,getBrowser:()=>hostRenderer.browser,ensureBrowser:()=>hostRenderer.browserInit(),assetRoots:[path.join(root,'resources/ui')],bootstrapFile:path.join(root,'resources/ui/shell.html'),onMetrics:metrics=>globalThis.logger?.info?.('[Teyvat] 图片耗时：'+JSON.stringify(metrics))}),{botRoot:storageOptions.botRoot});
+  const renderCard=createQueuedCardRenderer(createCardRenderer({botRoot:storageOptions.botRoot,getBrowser:()=>hostRenderer.browser,ensureBrowser:()=>hostRenderer.browserInit(),assetRoots:[path.join(root,'resources/ui')],bootstrapFile:path.join(root,'resources/ui/shell.html'),deliverBeforeCleanup:true,onMetrics:metrics=>globalThis.logger?.info?.('[Teyvat] 图片耗时：'+JSON.stringify(metrics))}),{botRoot:storageOptions.botRoot});
   const readHelp=createBundledHelpReader({root,defaultPrefix:'#原神'});
   const renderCachedHelp=createPublicHelpCache(renderCard);
   const renderHelp=card=>{const prefix=engine.config.read().prefix;if(prefix==='#原神'){const bytes=readHelp({prefix,private:card.private});if(!bytes)throw new CardRenderError('HELP_IMAGE_UNAVAILABLE');return bytes}return renderCachedHelp(card)};
