@@ -19,6 +19,7 @@
     "url": "https://github.com/719083594/Genshin-Plugin.git"
   },
   "dependencies": {
-    "qrcode": "1.5.4"
+    "qrcode": "1.5.4",
+    "sharp": "0.35.5"
   }
 }
