@@ -13,7 +13,7 @@ test('artwork URLs admit only official HTTPS raster assets and strip query data'
 
 test('public artwork uses credential-free requests and RAM-only cache across accounts',async()=>{
   const calls=[];
-  const resolve=createRecordAssetResolver({loadSharp,fetch:async(url,options)=>{calls.push({url,options});return new Response(png,{headers:{'content-type':'image/png'}});}});
+  const resolve=createRecordAssetResolver({loadSharp,loadLocalArtwork:async()=>null,fetch:async(url,options)=>{calls.push({url,options});return new Response(png,{headers:{'content-type':'image/png'}});}});
   const first=await resolve({...model,uid:'100000001',cookie:'synthetic-never-fetch'});
   const second=await resolve({...model,uid:'100000002'});
   assert.equal(calls.length,1);assert.equal(calls[0].options.redirect,'error');assert.equal(calls[0].options.credentials,'omit');
@@ -31,7 +31,7 @@ test('local public portraits work without an API image URL or any network reques
 
 test('failed, oversized, disguised SVG and non-official artwork keeps labelled placeholders',async()=>{
   for(const response of [new Response('<svg/>',{headers:{'content-type':'image/png'}}),new Response(png,{headers:{'content-type':'image/svg+xml'}}),new Response(png,{headers:{'content-type':'image/png','content-length':'524289'}}),new Response('',{status:403})]){
-    const resolve=createRecordAssetResolver({loadSharp:async()=>{throw new Error('unsafe input reached rasterizer');},fetch:async()=>response});
+    const resolve=createRecordAssetResolver({loadLocalArtwork:async()=>null,loadSharp:async()=>{throw new Error('unsafe input reached rasterizer');},fetch:async()=>response});
     assert.deepEqual(Object.keys((await resolve(model)).avatars),[]);
   }
   let called=false;
