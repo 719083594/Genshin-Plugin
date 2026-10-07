@@ -6,4 +6,4 @@ else if(cmd==='login'){const owner=args.shift();const r=await engine.login.start
 else if(cmd==='command'){const owner=args.shift();const result=await engine.handle({owner,privateChat:true,text:args.join(' ')});if(result.text)console.log(result.text);if(result.file)console.log(result.file.data);if(result.image){console.log('请在 bot 私聊扫码，或使用 CLI login USER [UID] 直接显示终端二维码。');if(result.qrSession)engine.login.cancel(owner,result.qrSession,{privateChat:true})}engine.login.stop();}
 else if(cmd==='import'){const [owner,id,file]=args;console.log(JSON.stringify(engine.gacha.import(owner,id,fs.readFileSync(path.resolve(file),'utf8'))));}
 else if(cmd==='export'){const [owner,id,file]=args;fs.writeFileSync(path.resolve(file),JSON.stringify(engine.gacha.export(owner,id),null,2),{mode:0o600,flag:'wx'});console.log('已导出到指定文件。');}
-else console.log('用法：node cli.mjs init | diagnose | login USER [UID] | command USER "#原神帮助" | import USER UID FILE | export USER UID FILE');
+else console.log('原神助手 (Genshin-Plugin)\n用法：node cli.mjs init | diagnose | login USER [UID] | command USER "#原神帮助" | import USER UID FILE | export USER UID FILE');

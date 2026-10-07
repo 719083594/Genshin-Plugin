@@ -1,6 +1,8 @@
-# 提瓦特助手 · Teyvat-Plugin
+# 原神助手 · Genshin-Plugin
 
-Bot 中 `#原神帮助` 默认发送插画分类图，保留常用命令、本人私聊标记及需配置的功能。发送 `#原神帮助 文字` 查看文字版。图片使用宿主共用浏览器的独立临时上下文生成并以内存 Buffer 发送；失败时回退文字，CLI 与独立 API 默认仍返回文字。素材来源与图片边界见 [图片界面](docs/IMAGE-UI.md)。
+项目仓库：[719083594/Genshin-Plugin](https://github.com/719083594/Genshin-Plugin)。默认命令继续使用 `#原神`。
+
+Bot 中 `#原神帮助` 默认直接读取并校验随包发布的插画分类图，保留常用命令、本人私聊标记及需配置的功能，无需启动浏览器。发送 `#原神帮助 文字` 查看文字版。自定义前缀通过宿主共用浏览器的独立临时上下文生成图片，并以内存 Buffer 发送；失败时回退文字，CLI 与独立 API 默认仍返回文字。素材来源与图片边界见 [图片界面](docs/IMAGE-UI.md)。
 
 原神专用 Node.js 插件，国服优先。独立核心提供账户隔离、加密授权、公开展柜、个人记录请求、资料、本地祈愿和用户订阅；TRSS/云崽可组合原喵喵、小火花、FanSky 与 genshin 的原神模块。
 
@@ -40,7 +42,7 @@ node cli.mjs export YOUR_QQ UID OUTPUT.json
 
 ## TRSS/云崽组合
 
-放入宿主 `plugins/Teyvat-Plugin`，把实例 `config/local.json` 的 `adapter` 设置为 `yunzai`。外部源保持原目录名与原许可，原根入口改为独立空 apps 导出，选择器直接导入已审计模块，避免重复注册与原入口自动初始化。依赖、设置脚本、首次完整重启与真实命令验收见 [组合安装说明](docs/NATIVE-PROVIDERS.md)。
+放入宿主 `plugins/Genshin-Plugin`，把实例 `config/local.json` 的 `adapter` 设置为 `yunzai`。外部源保持原目录名与原许可，原根入口改为独立空 apps 导出，选择器直接导入已审计模块，避免重复注册与原入口自动初始化。依赖、设置脚本、首次完整重启与真实命令验收见 [组合安装说明](docs/NATIVE-PROVIDERS.md)。
 
 `providers.miao/genshin/xhh/fanSky` 默认关闭，只有安装并核对加载结果后才启用。选择器返回 `loaded/partial/error/missing/disabled`；开关 true 不等于导入成功。喵喵使用 `#喵喵帮助`，小火花队伍计算使用 `#队伍伤害`，FanSky 对照入口使用 `#小助手队伍伤害`。原生 Cookie/UID 写库、公共 CK 和 authkey 缓存入口停用；组合从当前 QQ 的 AES 账户只在本次处理内取得临时读对象，不复制到原生 DB 或 Redis CK 池。
 
@@ -55,6 +57,8 @@ node cli.mjs export YOUR_QQ UID OUTPUT.json
 QQ、账号 UID、备注、Cookie 与账户滚动备份采用 AES-256-GCM 加密，个人墨安 Key、整份独立祈愿和订阅路由/去重状态也加密保存。祈愿文件名以密钥和 QQ/UID 对应的 AAD 计算 HMAC-SHA256，不在路径暴露 QQ/UID。旧独立祈愿和订阅在启动/读取时迁移加密，回验后清理确认未变的旧文件，失败保留并报错。
 
 新增原生缓存保护覆盖 miao 原神 PlayerData/旧 UserData、札记 NoteData、FanSky 面板/成就宝箱榜文件、xhh resin_timer，以及列明的角色榜、收藏、用户偏好、冷却和小火花 Redis 命名空间；正文与受控 Redis 键/成员/分数全加密，文件路径隐藏账号标识，原生凭据字段不存入缓存。适配器已部署并加载，真实 Redis Lua 合成迁移验收通过；具体范围和旧 Redis 原子迁移要求见 [组合说明](docs/NATIVE-PROVIDERS.md)。账户桥与缓存适配不是任意第三方代码的文件沙箱，未审计的新路径不自动获得相同保证。
+
+改名时须完整保留原实例的 `config/local.json`、加密数据与备份，再将插件目录调整为 `plugins/Genshin-Plugin`。内部 `Teyvat` API 导出、`TEYVAT_ACCOUNT_KEY` 环境变量、AES 存储标识和账户文件格式保持兼容，不要为改名重新生成密钥。
 
 随机密钥留在被 Git 忽略的 `config/local.json`，保存密钥才能解密。原生账号写库和全局 CK 池停用，临时查询授权在处理结束后失效。私聊文件使用内存上传；用户显式 CLI export 产生的明文 UIGF 是主动交换例外。所有实例数据不提交 GitHub。
 

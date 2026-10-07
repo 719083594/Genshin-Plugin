@@ -1,7 +1,7 @@
 {
-  "name": "teyvat-plugin",
+  "name": "genshin-plugin",
   "version": "0.1.0",
-  "description": "提瓦特助手：原神独立核心与TRSS适配",
+  "description": "原神助手：原神独立核心与TRSS适配",
   "type": "module",
   "license": "GPL-3.0-or-later",
   "author": "719083594",
@@ -16,7 +16,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/719083594/Teyvat-Plugin.git"
+    "url": "https://github.com/719083594/Genshin-Plugin.git"
   },
   "dependencies": {
     "qrcode": "1.5.4"

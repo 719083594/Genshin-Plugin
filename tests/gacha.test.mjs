@@ -42,7 +42,7 @@ for (const version of ['v2.2', 'v2.3', 'v2.4', 'v3.0', 'v4.0', 'v4.1', 'v4.2']) 
     assert.equal(store.import(OWNER, UID, JSON.stringify(input)).total, 1);
     const exported = store.export(OWNER, UID, { version });
     assert.equal(typeof exported.info.export_timestamp, 'number');
-    assert.equal(exported.info.export_app, 'Teyvat-Plugin');
+    assert.equal(exported.info.export_app, 'Genshin-Plugin');
     let records;
     if (version.startsWith('v4.')) {
       assert.equal(exported.info.version, version);

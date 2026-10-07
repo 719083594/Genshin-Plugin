@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "title": "提瓦特助手",
-  "description": "提瓦特助手：原神独立核心与TRSS适配",
+  "title": "原神助手",
+  "description": "原神助手：原神独立核心与TRSS适配",
   "version": "0.1.0",
   "commands": [
     "#原神帮助",
@@ -36,7 +36,7 @@
   ],
   "commandTable": [
     {
-      "title": "提瓦特助手",
+      "title": "原神助手",
       "command": "#原神帮助",
       "description": "真实可用范围及未接通功能见帮助；账户操作仅操作本人，授权仅私聊。",
       "permission": "all",
@@ -45,8 +45,8 @@
   ],
   "configs": [
     {
-      "id": "teyvat-plugin",
-      "title": "提瓦特助手实例参数",
+      "id": "genshin-plugin",
+      "title": "原神助手实例参数",
       "file": "config/local.json",
       "ownerOnly": true,
       "defaults": {

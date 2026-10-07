@@ -3,7 +3,7 @@ import path from 'node:path';
 import {createRequire} from 'node:module';
 import {fileURLToPath} from 'node:url';
 
-const emptyLoader='// Teyvat-Plugin loads the selected original apps. Original source/resources/licenses remain in this checkout.\nexport const apps = {};\n';
+const emptyLoader='// Genshin-Plugin loads the selected original apps. Original source/resources/licenses remain in this checkout.\nexport const apps = {};\n';
 
 export function planProviderSettings(botRoot,{yaml}={}) {
   botRoot=path.resolve(botRoot);
@@ -37,7 +37,7 @@ export function planProviderSettings(botRoot,{yaml}={}) {
       team_damage_priority:-98,team_damage_timeout:20,nanoka_abyss_enable:true,
       tmp_clean_enable:false,del_ck_hook_enable:false,solver_deploy_enable:false,captcha_notice_enable:false,
       auto_verify_addr:'',auto_sign_verify_addr:'',
-      stoken_paths:'plugins/Teyvat-Plugin/data/no-native-credentials',
+      stoken_paths:'plugins/Genshin-Plugin/data/no-native-credentials',
       bbs_coin_gsuid_db:path.join(botRoot,'plugins/xhh-TL/data/disabled-external-db/GsData.db'),
       resin_push_enable:false,resin_push_cron:'*/10 * * * *',resin_timer_enable:false,
       auto_sign_enable:false,auto_sign_cron:'23 0 * * *',

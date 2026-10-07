@@ -15,7 +15,7 @@ test('帮助图片是适配器显式选项，文字回退和独立 API 不启动
  assert.equal((await bot.handle({...event,text:'#原神帮助'})).card,undefined);
  assert.deepEqual((await bot.handle({...event,text:'#原神帮助',imageReply:true})).card,{type:'help',private:false});
  const plain=await bot.handle({...event,text:'#原神帮助 文字',imageReply:true});
- assert.equal(plain.card,undefined);assert.match(plain.text,/提瓦特助手/);assert.equal(requests,0);
+ assert.equal(plain.card,undefined);assert.match(plain.text,/原神助手/);assert.equal(requests,0);
 }));
 
 test('私密卡片群聊拒绝发生在视图构建和图片发送之前',async()=>{

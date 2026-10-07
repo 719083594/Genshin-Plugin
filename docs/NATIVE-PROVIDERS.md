@@ -1,6 +1,6 @@
 # 原神组合功能、安装与实际验收
 
-账户统一使用提瓦特助手的 AES-256-GCM 库，包括 QQ、账号 UID、备注、Cookie 与滚动备份。私聊 `#原神扫码登录 [UID]` 或 `#原神绑定Cookie UID Cookie` 核验本人角色后保存；多号由 `#原神账户/切换/解绑` 管理。真实官方扫码创建/pending/本人确认及角色核验已成功，AES 保存了一个国服账户。不复制到原生明文 DB/YAML/Redis CK 池，也不使用原 genshin 的裸 `#绑定Cookie`、公共 CK、跨 QQ 账号绑定与 authkey 缓存入口。组合面板可使用公开缓存；个人只读查询通过当前 QQ 的临时会话对象从 AES 库读取。不保存 stoken；米游币余额/任务状态通过独立固定 GET 复用 AES Cookie，本人已授权只读实测成功。签到、点赞、分享、兑换及领奖执行不提供。
+账户统一使用原神助手的 AES-256-GCM 库，包括 QQ、账号 UID、备注、Cookie 与滚动备份。私聊 `#原神扫码登录 [UID]` 或 `#原神绑定Cookie UID Cookie` 核验本人角色后保存；多号由 `#原神账户/切换/解绑` 管理。真实官方扫码创建/pending/本人确认及角色核验已成功，AES 保存了一个国服账户。不复制到原生明文 DB/YAML/Redis CK 池，也不使用原 genshin 的裸 `#绑定Cookie`、公共 CK、跨 QQ 账号绑定与 authkey 缓存入口。组合面板可使用公开缓存；个人只读查询通过当前 QQ 的临时会话对象从 AES 库读取。不保存 stoken；米游币余额/任务状态通过独立固定 GET 复用 AES Cookie，本人已授权只读实测成功。签到、点赞、分享、兑换及领奖执行不提供。
 
 ## 外部源码快照
 
@@ -11,7 +11,7 @@
 | `plugins/xhh-TL` | https://gitee.com/longhengmu/xhh-TL | `1b5e5644c9351fcfd950acabf2c791060a7c44b6` | MIT，cchanlan |
 | `plugins/FanSky_Qs` | https://github.com/AFanSKyQs/FanSky_Qs | `86d002866114fa1dd1c765325fde621925938adc` | Apache-2.0，AFanSKyQs |
 
-以上源码由用户直接安装在 bot，保留原仓库、版权通知与全部资源，不打包进提瓦特助手 GitHub。新插件包含原创选择器、账户会话隔离、边界守卫、配置和文档。MATOOL 没有可核验许可证，不复制其代码或模板；GamePush 的原神版本/包体协议由独立核心访问 HoYoPlay/Sophon，本次不安装其其他游戏模块。本机包体观察历史已实现，远端完整历史数据库仍待实现，不能声称与上游全部功能等价。
+以上源码由用户直接安装在 bot，保留原仓库、版权通知与全部资源，不打包进原神助手 GitHub。新插件包含原创选择器、账户会话隔离、边界守卫、配置和文档。MATOOL 没有可核验许可证，不复制其代码或模板；GamePush 的原神版本/包体协议由独立核心访问 HoYoPlay/Sophon，本次不安装其其他游戏模块。本机包体观察历史已实现，远端完整历史数据库仍待实现，不能声称与上游全部功能等价。
 
 genshin 来源核验：官方 Miao-Yunzai `40cc2103efba1fbb279b768e3f5345d45372d357` 根 LICENSE 为 GPL-3.0，其受版本管理的 `plugins/genshin` 419 个文件与上述独立仓库 420 个文件中有 416 个 Git blob 完全相同。可复核 `model/gsCfg.js`=`f5dc01aa70491a153decc8f935be926244e74444`、`model/base.js`=`51621158e752f55fd5e2a7077138a9d2bb8b1f6c`、`model/mys/NoteUser.js`=`104b191d4acb69a6de83839b8be0f20298ab5de8`。这提供原核心的 GPL 出处证据，不能推断独立仓库所有新增文件自动获得宿主许可。更严格的可再分发方案是从 Miao-Yunzai GPL 快照取其原 genshin 目录，并使用原创加载器；本项目不再分发这些文件。TRSS 官方 README 推荐 `#安装genshin` 与 `#安装miao-plugin`，但安装说明不是新增文件的许可证。
 
@@ -32,7 +32,7 @@ genshin 来源核验：官方 Miao-Yunzai `40cc2103efba1fbb279b768e3f5345d45372d
 
 1. 在 bot 暂停或隔离目录内取得上表固定源码快照，检查 commit 与原 LICENSE；资源保持原目录名。
 2. 定向解决上述实际缺失依赖，保持宿主数据库与原有机器人插件配置。
-3. 从宿主根执行 `node plugins/Teyvat-Plugin/scripts/provider-settings.mjs --bot-root BOT_ROOT` 查看计划（把 BOT_ROOT 替换为本机宿主根目录），再加 `--apply` 写入设置。该脚本不启动源码、不发网络请求、不输出凭证。
+3. 从宿主根执行 `node plugins/Genshin-Plugin/scripts/provider-settings.mjs --bot-root BOT_ROOT` 查看计划（把 BOT_ROOT 替换为本机宿主根目录），再加 `--apply` 写入设置。该脚本不启动源码、不发网络请求、不输出凭证。
 4. 每个外部根 `index.js` 替换为原创 `export const apps = {};`，原内容备份为 `index.teyvat-original.js.txt`。这样外部顶层不会重复注册命令。当前选择器从固定快照导入 miao 9 类、genshin 13 类、小火花 9 类和 FanSky BotEntry 1 类，共 32 类，并排除下述原生凭据入口。
 5. 只有各源实际导入成功后才在 `config/local.json` 启用 `providers.miao/genshin/xhh/fanSky`。`loadNativeProviders` 返回 `loaded/partial/error/missing/disabled` 与逐 app 的错误码；`partial` 不应当成完整成功。
 6. 完整重启 bot，读取启动日志、导入结果、规则表、任务表后再做真实 QQ 交互验收。
